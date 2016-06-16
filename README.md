@@ -24,7 +24,7 @@ This repository requires to have the basic driver layer of Robotino (robotino_br
 **Commonly**
 The ROS packages dependencies can be installed with the command:
 ```
-rosdep install --from-path **repository_name** -i -y
+rosdep install --from-path squirrel_calibration -i -y
 ```
 ## 2. Execution: <a id="2--execution"/> 
 Instructions for doing the calibration are provided in file `squirrel_calibration/robotino_calibration/readme.md` or at [http://wiki.ros.org/robotino_calibration](http://wiki.ros.org/robotino_calibration).
