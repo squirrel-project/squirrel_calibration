@@ -31,6 +31,6 @@ Instructions for doing the calibration are provided in file `squirrel_calibratio
 
 ## 3. Software architecture <a id="3--software-architecture"/> 
 
-camera_base_calibration: [camera_base_calibration](https://raw.githubusercontent.com/squirrel-project/squirrel_calibration/master/software_architecture/camera_base_calibration.png)
+camera_base_calibration: ![camera_base_calibration](https://github.com/squirrel-project/squirrel_calibration/blob/indigo_dev/camera_base_calibration.png "Architecture")
 
 <a href="#top">top</a>
