@@ -55,7 +55,7 @@
  *
  ****************************************************************/
 
-#include "robotino_calibration/checkerboard_localisation.h"
+#include "relative_localization/checkerboard_localisation.h"
 #include <vector>
 
 CheckerboardLocalization::CheckerboardLocalization(ros::NodeHandle& nh)
