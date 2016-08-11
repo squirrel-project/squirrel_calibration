@@ -10,16 +10,16 @@
  *****************************************************************
  *
 * \note
-* Repository name: squirrel_robotino
+* Repository name: squirrel_calibration
 * \note
-* ROS package name: checkerboard_localisation
+* ROS package name: relative_localization
  *
  * \author
  * Author: Richard Bormann
  * \author
  * Supervised by:
  *
- * \date Date of creation: 11.03.2015
+ * \date Date of creation: 10.08.2016
  *
  * \brief
  *
@@ -55,10 +55,11 @@
  *
  ****************************************************************/
 
-#ifndef CHECKERBOARD_LOCALISATION_H
-#define CHECKERBOARD_LOCALISATION_H
+#ifndef CORNER_LOCALISATION_H
+#define CORNER_LOCALISATION_H
 
 #include <iostream>
+#include <vector>
 
 // ROS
 #include "ros/ros.h"
@@ -73,69 +74,23 @@
 
 // dynamic reconfigure
 #include <dynamic_reconfigure/server.h>
-#include <robotino_calibration/CheckerboardLocalisationConfig.h>
+#include <relative_localization/CheckerboardLocalisationConfig.h>
 
 // OpenCV
 #include <opencv/cv.h>
 
 
-class CheckerboardLocalization
+class CornerLocalization
 {
 public:
-	CheckerboardLocalization(ros::NodeHandle& nh);
-	~CheckerboardLocalization();
-
-	struct Point2d
-	{
-		double x;
-		double y;
-
-		Point2d()
-		{
-			x = 0.;
-			y = 0.;
-		}
-
-		Point2d(double x_, double y_)
-		{
-			x = x_;
-			y = y_;
-		}
-
-		friend std::ostream& operator<<(std::ostream& os, const Point2d& p)
-		{
-			os << "(" << p.x << "," << p.y << ")";
-			return os;
-		}
-
-		void operator+=(const Point2d& p)
-		{
-			x += p.x;
-			y += p.y;
-		}
-
-		void operator/=(const double div)
-		{
-			x /= div;
-			y /= div;
-		}
-
-		void operator*=(const double fac)
-		{
-			x *= fac;
-			y *= fac;
-		}
-	};
+	CornerLocalization(ros::NodeHandle& nh);
+	~CornerLocalization() {};
 
 
 private:
 
 	void callback(const sensor_msgs::LaserScan::ConstPtr& laser_scan_msg);
 	void dynamicReconfigureCallback(robotino_calibration::CheckerboardLocalisationConfig& config, uint32_t level);
-	void fitLine(std::vector<cv::Point2d>& points, cv::Vec4d& line, double inlier_ratio, double success_probability, double max_inlier_distance, bool draw_from_both_halves_of_point_set=false);
-	void publishWallVisualization(const std_msgs::Header& header, const double px, const double py, const double n0x, const double n0y);
-	void publishBoxPoints(const std_msgs::Header& header, const std::vector< std::vector<cv::Point2d> >& segments, const size_t largest_segment);
-	void removeBoxOutliers(std::vector<cv::Point2d>& points);
 
 	ros::NodeHandle node_handle_;
 	ros::Subscriber laser_scan_sub_;
@@ -148,6 +103,11 @@ private:
 	tf::Quaternion avg_orientation_;
 	double update_rate_;
 	std::string child_frame_name_;
+
+	// parameters
+	double wall_length_left_;		// the length of the wall segment left of the checkerboard's origin, in[m]
+	double wall_length_right_;		// the length of the wall segment right of the checkerboard's origin, in[m]
+	double max_wall_side_distance_;		// the maximum distance of the side wall to the laser scanner, in[m]
 };
 
-#endif // CHECKERBOARD_LOCALISATION_H
+#endif // CORNER_LOCALISATION_H

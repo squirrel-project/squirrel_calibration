@@ -10,9 +10,9 @@
  *****************************************************************
  *
 * \note
-* Repository name: squirrel_robotino
+* Repository name: squirrel_calibration
 * \note
-* ROS package name: checkerboard_localisation
+* ROS package name: relative_localization
  *
  * \author
  * Author: Richard Bormann
@@ -55,30 +55,44 @@
  *
  ****************************************************************/
 
-#include "robotino_calibration/checkerboard_localisation.h"
-#include <vector>
+#include <relative_localization/box_localization.h>
+#include <relative_localization/visualization_utilities.h>
+#include <relative_localization/relative_localization_utilities.h>
 
-CheckerboardLocalization::CheckerboardLocalization(ros::NodeHandle& nh)
+BoxLocalization::BoxLocalization(ros::NodeHandle& nh)
 		: node_handle_(nh)
 {
+	// load parameters
+	std::cout << "\n========== Box Localization Parameters ==========\n";
+	node_handle_.param("update_rate", update_rate_, 0.75);
+	std::cout << "update_rate: " << update_rate_ << std::endl;
+	node_handle_.param<std::string>("child_frame_name", child_frame_name_, "");
+	std::cout << "child_frame_name: " << child_frame_name_ << std::endl;
+	node_handle_.param("wall_length_left", wall_length_left_, 0.75);
+	std::cout << "wall_length_left: " << wall_length_left_ << std::endl;
+	node_handle_.param("wall_length_right", wall_length_right_, 0.75);
+	std::cout << "wall_length_right: " << wall_length_right_ << std::endl;
+	node_handle_.param("box_search_width", box_search_width_, 0.5);
+	std::cout << "box_search_width: " << box_search_width_ << std::endl;
+
 	// publishers
 	marker_pub_ = node_handle_.advertise<visualization_msgs::Marker>("wall_marker", 1);
 
 	// subscribers
-	laser_scan_sub_ = node_handle_.subscribe("laser_scan_in", 0, &CheckerboardLocalization::callback, this);
+	laser_scan_sub_ = node_handle_.subscribe("laser_scan_in", 0, &BoxLocalization::callback, this);
 
 	// dynamic reconfigure
-	dynamic_reconfigure_server_.setCallback(boost::bind(&CheckerboardLocalization::dynamicReconfigureCallback, this, _1, _2));
+	dynamic_reconfigure_server_.setCallback(boost::bind(&BoxLocalization::dynamicReconfigureCallback, this, _1, _2));
 	avg_translation_.setZero();
 }
 
-CheckerboardLocalization::~CheckerboardLocalization()
+BoxLocalization::~BoxLocalization()
 {
 
 }
 
 //#define DEBUG_OUTPUT
-void CheckerboardLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& laser_scan_msg)
+void BoxLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& laser_scan_msg)
 {
 	// convert scan to x-y coordinates
 	std::vector<cv::Point2d> scan;
@@ -87,13 +101,13 @@ void CheckerboardLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& 
 		double angle = laser_scan_msg->angle_min + i * laser_scan_msg->angle_increment; //[rad]
 		double dist = laser_scan_msg->ranges[i];
 		cv::Point2d point(dist*cos(angle), dist*sin(angle));
-		if (point.y > -0.75 && point.y < 0.75) // dump points that are too far on left/right in terms of the scanner base
+		if (point.y > -wall_length_right_ && point.y < wall_length_left_) // dump points that are too far on left/right in terms of the scanner base
 			scan.push_back(point);
 	}
 
 	// match line to scan
 	cv::Vec4d line;
-	fitLine(scan, line, 0.1, 0.9999, 0.01, true);
+	RelativeLocalizationUtilities::fitLine(scan, line, 0.1, 0.9999, 0.01, true);
 	if (line.val[0] != line.val[0] || line.val[1] != line.val[1] || line.val[2] != line.val[2] || line.val[3] != line.val[3]) // check for NaN
 		return;
 
@@ -103,7 +117,7 @@ void CheckerboardLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& 
 	const double n0x = line.val[2];	// normal direction on the wall (in floor plane x-y)
 	const double n0y = line.val[3];
 	if (marker_pub_.getNumSubscribers() > 0)
-		publishWallVisualization(laser_scan_msg->header, px, py, n0x, n0y);
+		VisualizationUtilities::publishWallVisualization(laser_scan_msg->header, "wall", px, py, n0x, n0y, marker_pub_);
 
 	// find blocks in front of the wall
 	std::vector< std::vector<cv::Point2d> > segments;
@@ -112,7 +126,7 @@ void CheckerboardLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& 
 	for (unsigned int i = 0; i < scan.size(); ++i)
 	{
 		//double distance_to_robot = scan[i].x*scan[i].x + scan[i].y*scan[i].y;
-		if (scan[i].y < 0.5 && scan[i].y > -0.5)	// only search for block in front of the robot
+		if (scan[i].y < box_search_width_ && scan[i].y > -box_search_width_)	// only search for block in front of the robot
 		{
 			double d = fabs(n0x*(scan[i].x-px) + n0y*(scan[i].y-py));		// distance to wall
 			if (d<0.1 && in_reflector_segment==true)
@@ -141,7 +155,7 @@ void CheckerboardLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& 
 		{
 			largest_segment_size = segments[i].size();
 			largest_segment = i;
-			corner_point = segments[i][segments[i].size()-1]; //IMPROVE: This forces the scanner to work from left to right, maybe make this more general to detect the corner point? Or add a config for users to determine where the scanner starts.
+			corner_point = segments[i][segments[i].size()-1];
 		}
 	}
 	if (corner_point.x == 0 && corner_point.y == 0)
@@ -149,7 +163,7 @@ void CheckerboardLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& 
 
 	// display points of box segment
 	if (marker_pub_.getNumSubscribers() > 0)
-		publishBoxPoints(laser_scan_msg->header, segments, largest_segment);
+		VisualizationUtilities::publishPointsVisualization(laser_scan_msg->header, "box_points", segments[largest_segment], marker_pub_);
 
 #ifdef DEBUG_OUTPUT
 	std::cout << "Corner point: " << corner_point << std::endl;
@@ -172,7 +186,7 @@ void CheckerboardLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& 
 	double y = py - j*n0x;
 	tf::Vector3 translation(x, y, 0.);
 	// direction of x-axis in laser scanner coordinate system
-	Point2d normal(n0x, n0y);
+	cv::Point2d normal(n0x, n0y);
 	if (normal.x*translation.getX() + normal.y*translation.getY() < 0)
 		normal *= -1.;
 	double angle = atan2(normal.y, normal.x);
@@ -188,7 +202,7 @@ void CheckerboardLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& 
 	else
 	{
 		// update value
-		avg_translation_ = (1.0 - update_rate_) * avg_translation_ + update_rate_ * translation; //HELP: Which value range can update_rate_ take?
+		avg_translation_ = (1.0 - update_rate_) * avg_translation_ + update_rate_ * translation;
 		avg_orientation_.setW((1.0 - update_rate_) * avg_orientation_.getW() + update_rate_ * orientation.getW());
 		avg_orientation_.setX((1.0 - update_rate_) * avg_orientation_.getX() + update_rate_ * orientation.getX());
 		avg_orientation_.setY((1.0 - update_rate_) * avg_orientation_.getY() + update_rate_ * orientation.getY());
@@ -308,174 +322,16 @@ void CheckerboardLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& 
 //	}
 //}
 
-void CheckerboardLocalization::dynamicReconfigureCallback(robotino_calibration::CheckerboardLocalisationConfig &config, uint32_t level)
+void BoxLocalization::dynamicReconfigureCallback(robotino_calibration::CheckerboardLocalisationConfig &config, uint32_t level)
 {
 	update_rate_ = config.update_rate;
 	child_frame_name_ = config.child_frame_name;
-	std::cout << "Reconfigure request with\n update_rate=" << update_rate_ << "\n child_frame_name=" << child_frame_name_ << "\n";
-}
-
-void CheckerboardLocalization::fitLine(std::vector<cv::Point2d>& points, cv::Vec4d& line, const double inlier_ratio, const double success_probability, const double max_inlier_distance, bool draw_from_both_halves_of_point_set)
-{
-	//removeBoxOutliers(points);
-
-	const int iterations = (int)(log(1.-success_probability)/log(1.-inlier_ratio*inlier_ratio));
-#ifdef DEBUG_OUTPUT
-	std::cout << "fitLine: iterations: " << iterations << std::endl;
-#endif
-	const int samples = (int)points.size();
-
-	// RANSAC iterations
-	int max_inliers = 0;
-	for (int k=0; k<iterations; ++k)
-	{
-		// draw two different points from samples
-		int index1, index2;
-		if (draw_from_both_halves_of_point_set == false)
-		{
-			index1 = rand()%samples;
-			index2 = index1;
-			while (index2==index1)
-				index2 = rand()%samples;
-		}
-		else
-		{
-			index1 = rand()%(samples/2);
-			index2 = std::min((samples/2)+rand()%(samples/2), samples-1);
-		}
-
-		// compute line equation from points: d = n0 * (x - x0)  (x0=point on line, n0=normalized normal on line, d=distance to line, d=0 -> line)
-		cv::Point2d x0 = points[index1];	// point on line
-		cv::Point2d n0(points[index2].y-points[index1].y, points[index1].x-points[index2].x);	// normal direction on line
-		const double n0_length = sqrt(n0.x*n0.x + n0.y*n0.y);
-		n0.x /= n0_length; n0.y /= n0_length;
-		const double c = -points[index1].x*n0.x - points[index1].y*n0.y;		// distance to line: d = n0*(x-x0) = n0.x*x + n0.y*y + c
-
-		// count inliers
-		int inliers = 0;
-		for (size_t i=0; i<points.size(); ++i)
-			if (fabs(n0.x * points[i].x + n0.y * points[i].y + c) <= max_inlier_distance) // count points that are within a margin around the line
-				++inliers;
-
-		// update best model
-		if (inliers > max_inliers)
-		{
-			max_inliers = inliers;
-			line = cv::Vec4d(points[index1].x, points[index1].y, n0.x, n0.y);		// [x0, y0, n0.x, n0.y]
-		}
-	}
-
-#ifdef DEBUG_OUTPUT
-	std::cout << "Ransac line: " << line << std::endl;
-#endif
-
-	// final optimization with least squares fit
-	const cv::Point2d n0(line[2], line[3]);
-	const double c = -line[0]*n0.x - line[1]*n0.y;
-	std::vector<cv::Point2f> inlier_set;
-	for (size_t i=0; i<points.size(); ++i)
-		if (fabs(n0.x * points[i].x + n0.y * points[i].y + c) <= max_inlier_distance)
-			inlier_set.push_back(cv::Point2f(points[i].x, points[i].y));
-	cv::Vec4f line_ls;
-	cv::fitLine(inlier_set, line_ls, CV_DIST_L2, 0, 0.01, 0.01);	// (vx, vy, x0, y0), where (vx, vy) is a normalized vector collinear to the line and (x0, y0) is a point on the line
-	const double length = sqrt(line_ls[0]*line_ls[0]+line_ls[1]*line_ls[1]);
-	line = cv::Vec4d(line_ls[2], line_ls[3], line_ls[1]/length, -line_ls[0]/length); // store optimized line and its normal vector
-
-#ifdef DEBUG_OUTPUT
-	std::cout << "Optimized line: " << line << std::endl;
-#endif
-}
-
-void CheckerboardLocalization::removeBoxOutliers(std::vector<cv::Point2d>& points) // can be removed
-{
-	// Remove outliers that are imposed by the box in front of the wall.
-	// Try to find the box points and remove them from the points list, so they don't distort the wall-line.
-	if ( points.size() > 1 )
-	{
-		double maxX = -1.0;
-		double avgX = 0.0;
-		for ( size_t i=0; i<points.size(); i++ )
-		{
-			avgX += points[i].x;
-
-			if ( maxX < 0 || points[i].x > maxX )
-				maxX = points[i].x;
-		}
-
-		avgX /= points.size();
-		double maxDist = fabs(maxX - avgX); // Max allowed distance the x-value of a point can have to avg. x in order to not be dropped.
-
-		for ( size_t i=points.size()-1; i>=0; i-- )
-		{
-			if ( fabs(points[i].x - avgX) > maxDist ) // Get rid of box outliers that don't define points on the wall.
-				points.erase(points.begin()+i);
-		}
-	}
-}
-
-void CheckerboardLocalization::publishWallVisualization(const std_msgs::Header& header, const double px, const double py, const double n0x, const double n0y)
-{
-	//if (marker_pub_.getNumSubscribers() > 0)
-	//{
-		visualization_msgs::Marker marker;
-		marker.header = header;
-		marker.ns = "wall";
-		marker.id = 0;
-		marker.type = visualization_msgs::Marker::LINE_LIST;
-		marker.action = visualization_msgs::Marker::ADD;
-		marker.pose.position.x = 0;
-		marker.pose.position.y = 0;
-		marker.pose.position.z = 0;
-		marker.pose.orientation.x = 0.0;
-		marker.pose.orientation.y = 0.0;
-		marker.pose.orientation.z = 0.0;
-		marker.pose.orientation.w = 1.0;
-		marker.color.r = 0.0;
-		marker.color.g = 1.0;
-		marker.color.b = 0.0;
-		marker.color.a = 1.0;
-		marker.scale.x = 0.05;
-		geometry_msgs::Point point;
-		point.x = px - 5*n0y;
-		point.y = py + 5*n0x;
-		point.z = 0;
-		marker.points.push_back(point);
-		point.x = px + 5*n0y;
-		point.y = py - 5*n0x;
-		point.z = 0;
-		marker.points.push_back(point);
-		marker_pub_.publish(marker);
-	//}
-}
-
-void CheckerboardLocalization::publishBoxPoints(const std_msgs::Header& header, const std::vector< std::vector<cv::Point2d> >& segments, const size_t largest_segment)
-{
-	// display points of box segment
-	visualization_msgs::Marker marker;
-	marker.header = header;
-	marker.ns = "box_points";
-	marker.id = 0;
-	marker.type = visualization_msgs::Marker::SPHERE_LIST;
-	marker.action = visualization_msgs::Marker::ADD;
-	marker.pose.position.x = 0;
-	marker.pose.position.y = 0;
-	marker.pose.position.z = 0;
-	marker.pose.orientation.x = 0.0;
-	marker.pose.orientation.y = 0.0;
-	marker.pose.orientation.z = 0.0;
-	marker.pose.orientation.w = 1.0;
-	marker.color.r = 0.0;
-	marker.color.g = 0.0;
-	marker.color.b = 1.0;
-	marker.color.a = 1.0;
-	//marker.scale.x = 0.05;
-	for (size_t i=0; i<segments[largest_segment].size(); ++i)
-	{
-		geometry_msgs::Point point;
-		point.x = segments[largest_segment][i].x;
-		point.y = segments[largest_segment][i].y;
-		point.z = 0;
-		marker.points.push_back(point);
-	}
-	marker_pub_.publish(marker);
+	wall_length_left_ = config.wall_length_left;
+	wall_length_right_ = config.wall_length_right;
+	box_search_width_ = config.box_search_width;
+	std::cout << "Reconfigure request with\n update_rate=" << update_rate_
+			<< "\n child_frame_name=" << child_frame_name_
+			<< "\n wall_length_left=" << wall_length_left_
+			<< "\n wall_length_right=" << wall_length_right_
+			<< "\n box_search_width=" << box_search_width_ << "\n";
 }
