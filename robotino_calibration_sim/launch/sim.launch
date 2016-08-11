@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- define arguments -->
+  <arg name="robot_env" default="calibration_room"/>
+  <arg name="robot" default="robotino"/>
+
+  <arg name="paused" default="false"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="gui" default="true"/>
+  <arg name="throttled" default="false"/>
+  <arg name="env_path" default="$(find robotino_calibration_sim)/world/launch"/>
+
+  <!-- startup simulated world -->
+  <include file="$(arg env_path)/$(arg robot_env).launch">
+    <arg name="paused" value="$(arg paused)" />
+    <arg name="use_sim_time" value="$(arg use_sim_time)" />
+    <arg name="gui" value="$(arg gui)" />
+    <arg name="throttled" value="$(arg throttled)" />
+  </include>
+
+  <!-- startup simulated robot -->
+  <include file="$(find robotino_bringup_sim)/robots/$(arg robot)/$(arg robot).launch" >
+    <arg name="paused" value="$(arg paused)" /> 
+    <arg name="robot" value="$(arg robot)" />
+  </include>
+
+</launch>
