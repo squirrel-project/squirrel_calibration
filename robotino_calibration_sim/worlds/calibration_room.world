@@ -119,16 +119,16 @@
       </link>
     </model>
 
-<model name='calibration_setup_pitag'>
+    <model name='calibration_setup_tag25'>
       <static>true</static>
-      <pose>1.005 0 0.5 0 0 0</pose>
-      <link name='tag_0'>
-        <pose>0 0 0 0 0 0</pose>
+      <pose>1.00 0.2 0.75 0 0 0</pose>
+      <link name='tag25'>
+        <pose>0 0.015 -0.165 0 0 0</pose>
         <collision name='collision'>
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.1 0.1 0.1</size>
+              <size>0.1 0.15 0.15</size>
             </box>
           </geometry>
         </collision>
@@ -136,8 +136,208 @@
           <pose>0 0 0 0 0 0</pose>
           <geometry>
             <mesh>
-              <scale>1 1 1</scale>
-              <uri>/home/rmb-mr/git/squirrel/src/squirrel_calibration/robotino_calibration_sim/world/prefabs/pitags/tag_0/tag0.dae</uri>
+              <scale>1.0 1.5 1.5</scale>
+              <uri>model://prefabs/pitags/tag25.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <model name='calibration_setup_tag36'>
+      <static>true</static>
+      <pose>1.00 0.2 0.55 0 0 0</pose>
+      <link name='tag36'>
+        <pose>0 0.015 -0.165 0 0 0</pose>
+        <collision name='collision'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.15 0.15</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name='visual'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <scale>1.0 1.5 1.5</scale>
+              <uri>model://prefabs/pitags/tag36.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <model name='calibration_setup_tag38'>
+      <static>true</static>
+      <pose>1.00 0.0 0.65 0 0 0</pose>
+      <link name='tag38'>
+        <pose>0 0.015 -0.165 0 0 0</pose>
+        <collision name='collision'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.15 0.15</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name='visual'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <scale>1.0 1.5 1.5</scale>
+              <uri>model://prefabs/pitags/tag38.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <model name='calibration_setup_tag48'>
+      <static>true</static>
+      <pose>0.4 1.0 0.75 0 0 1.571</pose>
+      <link name='tag48'>
+        <pose>0 0.015 -0.165 0 0 0</pose>
+        <collision name='collision'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.15 0.15</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name='visual'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <scale>1.0 1.5 1.5</scale>
+              <uri>model://prefabs/pitags/tag48.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <model name='calibration_setup_tag55'>
+      <static>true</static>
+      <pose>0.4 1.0 0.55 0 0 1.571</pose>
+      <link name='tag55'>
+        <pose>0 0.015 -0.165 0 0 0</pose>
+        <collision name='collision'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.15 0.15</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name='visual'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <scale>1.0 1.5 1.5</scale>
+              <uri>model://prefabs/pitags/tag55.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <model name='calibration_setup_tag64'>
+      <static>true</static>
+      <pose>0.6 1.0 0.65 0 0 1.571</pose>
+      <link name='tag64'>
+        <pose>0 0.015 -0.165 0 0 0</pose>
+        <collision name='collision'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.15 0.15</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name='visual'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <scale>1.0 1.5 1.5</scale>
+              <uri>model://prefabs/pitags/tag64.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <model name='calibration_setup_tag69'>
+      <static>true</static>
+      <pose>0.8 0.6 0 0 1.571 0</pose>
+      <link name='tag64'>
+        <pose>0 0.015 -0.165 0 0 0</pose>
+        <collision name='collision'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.15 0.15</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name='visual'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <scale>1.0 1.5 1.5</scale>
+              <uri>model://prefabs/pitags/tag69.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <model name='calibration_setup_tag73'>
+      <static>true</static>
+      <pose>0.8 0.3 0 0 1.571 0</pose>
+      <link name='tag73'>
+        <pose>0 0.015 -0.165 0 0 0</pose>
+        <collision name='collision'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.15 0.15</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name='visual'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <scale>1.0 1.5 1.5</scale>
+              <uri>model://prefabs/pitags/tag73.dae</uri>
+            </mesh>
+          </geometry>
+        </visual>
+      </link>
+    </model>
+
+    <model name='calibration_setup_tag79'>
+      <static>true</static>
+      <pose>0.8 0.0 0 0 1.571 0</pose>
+      <link name='tag79'>
+        <pose>0 0.015 -0.165 0 0 0</pose>
+        <collision name='collision'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.15 0.15</size>
+            </box>
+          </geometry>
+        </collision>
+        <visual name='visual'>
+          <pose>0 0 0 0 0 0</pose>
+          <geometry>
+            <mesh>
+              <scale>1.0 1.5 1.5</scale>
+              <uri>model://prefabs/pitags/tag79.dae</uri>
             </mesh>
           </geometry>
         </visual>

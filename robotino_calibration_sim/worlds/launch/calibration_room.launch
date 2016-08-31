@@ -11,7 +11,7 @@
 	
 	<!-- start gazebo with empty world -->
 	<include file="$(find cob_gazebo_worlds)/launch/empty.launch">
-		<arg name="world_name" value="$(find robotino_calibration_sim)/world/calibration_room.world" />
+		<arg name="world_name" value="$(find robotino_calibration_sim)/worlds/calibration_room.world" />
 		<arg name="debug" value="$(arg debug)" />
 		<arg name="headless" value="$(arg headless)"/>
 		<arg name="paused" value="$(arg paused)" />

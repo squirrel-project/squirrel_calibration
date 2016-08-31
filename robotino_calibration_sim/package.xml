@@ -12,6 +12,12 @@
 
 	<buildtool_depend>catkin</buildtool_depend>
 
-	<depend>robotino_bringup_sim</depend>
+	<depend>gazebo_ros</depend>
+		
+	<exec_depend>robotino_bringup_sim</exec_depend>
+	
+	<export>
+		<gazebo_ros gazebo_model_path="${prefix}/worlds"/> 
+	</export>
 
 </package>

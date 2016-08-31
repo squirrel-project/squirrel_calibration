@@ -9,8 +9,10 @@
   <arg name="use_sim_time" default="true"/>
   <arg name="gui" default="true"/>
   <arg name="throttled" default="false"/>
-  <arg name="env_path" default="$(find robotino_calibration_sim)/world/launch"/>
+  <arg name="env_path" default="$(find robotino_calibration_sim)/worlds/launch"/>
+  <arg name="gazebo_env" default="$(optenv GAZEBO_RESOURCE_PATH)"/>
 
+  <env name="GAZEBO_RESOURCE_PATH" value="$(arg gazebo_env):(find robotino_calibration_sim)/worlds/prefabs" />
   <!-- startup simulated world -->
   <include file="$(arg env_path)/$(arg robot_env).launch">
     <arg name="paused" value="$(arg paused)" />
@@ -24,5 +26,7 @@
     <arg name="paused" value="$(arg paused)" /> 
     <arg name="robot" value="$(arg robot)" />
   </include>
+
+  <!-- <env name="GAZEBO_RESOURCE_PATH" value="$(arg gazebo_env)"/> -->
 
 </launch>
