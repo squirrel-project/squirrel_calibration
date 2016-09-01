@@ -271,7 +271,7 @@
 
     <model name='calibration_setup_tag69'>
       <static>true</static>
-      <pose>0.8 0.6 0 0 1.571 0</pose>
+      <pose>0.8 0.6 0.0 0 1.571 0</pose>
       <link name='tag64'>
         <pose>0 0.015 -0.165 0 0 0</pose>
         <collision name='collision'>
@@ -296,7 +296,7 @@
 
     <model name='calibration_setup_tag73'>
       <static>true</static>
-      <pose>0.8 0.3 0 0 1.571 0</pose>
+      <pose>0.8 0.3 0.0 0 1.571 0</pose>
       <link name='tag73'>
         <pose>0 0.015 -0.165 0 0 0</pose>
         <collision name='collision'>
@@ -321,7 +321,7 @@
 
     <model name='calibration_setup_tag79'>
       <static>true</static>
-      <pose>0.8 0.0 0 0 1.571 0</pose>
+      <pose>0.8 0.0 0.0 0 1.571 0</pose>
       <link name='tag79'>
         <pose>0 0.015 -0.165 0 0 0</pose>
         <collision name='collision'>
@@ -450,7 +450,7 @@
 
     <gui>
       <camera name='user_camera'>
-        <pose>12 -3 12 0 0.7 3.14</pose>
+        <pose>-4 -4 6 0 0.7 0.7</pose>
       </camera>
     </gui>
 
