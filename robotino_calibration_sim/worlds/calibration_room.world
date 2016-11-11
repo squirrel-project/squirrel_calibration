@@ -119,6 +119,7 @@
       </link>
     </model>
 
+<!--
     <model name='calibration_setup_tag25'>
       <static>true</static>
       <pose>1.00 0.2 0.75 0 0 0</pose>
@@ -343,14 +344,14 @@
         </visual>
       </link>
     </model>
+-->
 
-<!--
     <model name='calibration_setup_checkerboard'>
       <static>true</static>
       <pose>1 0 0 0 0 0</pose>
       <link name='cb_9x6'>
-        <pose>0.003 -0.1725 0.6815 0 0 0</pose> <!-- base_height+hokuyo_z+offset-cb_offset=0.6815, hokuyo_z estimated to (0.102-0.025) -->
-     <!--   <collision name='collision'>
+        <pose>0.003 -0.1725 0.6815 0 0 0</pose>
+        <collision name='collision'>
           <pose>-0.0025 0.1 0.1 0 0 0</pose>
           <geometry>
             <box>
@@ -392,7 +393,6 @@
         </visual>
       </link>
     </model>
--->
 
 
 <!--
