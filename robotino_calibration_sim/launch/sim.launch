@@ -4,6 +4,7 @@
   <!-- define arguments -->
   <arg name="robot_env" default="calibration_room"/>
   <arg name="robot" default="robotino"/>
+  <arg name="marker" default="pitag"/>
 
   <arg name="paused" default="false"/>
   <arg name="use_sim_time" default="true"/>
@@ -15,6 +16,7 @@
   <env name="GAZEBO_RESOURCE_PATH" value="$(arg gazebo_env):(find robotino_calibration_sim)/worlds/prefabs" />
   <!-- startup simulated world -->
   <include file="$(arg env_path)/$(arg robot_env).launch">
+    <arg name="marker" default="$(arg marker)"/>
     <arg name="paused" value="$(arg paused)" />
     <arg name="use_sim_time" value="$(arg use_sim_time)" />
     <arg name="gui" value="$(arg gui)" />

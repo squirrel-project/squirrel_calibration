@@ -119,7 +119,6 @@
       </link>
     </model>
 
-<!--
     <model name='calibration_setup_tag25'>
       <static>true</static>
       <pose>1.00 0.2 0.75 0 0 0</pose>
@@ -344,109 +343,6 @@
         </visual>
       </link>
     </model>
--->
-
-    <model name='calibration_setup_checkerboard'>
-      <static>true</static>
-      <pose>1 0 0 0 0 0</pose>
-      <link name='cb_9x6'>
-        <pose>0.003 -0.1725 0.6815 0 0 0</pose>
-        <collision name='collision'>
-          <pose>-0.0025 0.1 0.1 0 0 0</pose>
-          <geometry>
-            <box>
-              <size>0.005 0.2 0.2</size>
-            </box>
-          </geometry>
-        </collision>
-        <visual name='visual'>
-          <pose>0 0 0 1.571 0 1.571</pose>
-          <geometry>
-            <mesh>
-              <scale>0.0254 0.0254 0.0254</scale>
-              <uri>/opt/ros/indigo/share/cob_gazebo_objects/Media/models/cb_9x6.dae</uri>
-            </mesh>
-          </geometry>
-        </visual>
-      </link>
-      <link name='box'>
-        <pose>-0.06 -0.06 0.1 0 0 0</pose>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.12 0.12 0.2</size>
-            </box>
-          </geometry>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <box>
-              <size>0.12 0.12 0.2</size>
-            </box>
-          </geometry>
-          <material>
-            <script>
-              <uri>file://media/materials/scripts/gazebo.material</uri>
-              <name>Gazebo/Grey</name>
-            </script>
-          </material>
-        </visual>
-      </link>
-    </model>
-
-
-<!--
-    <model name='cb_9x6'>
-      <static>true</static>
-      <pose>4.503 -0.1725 -0.1455 1.571 0 1.571</pose>
-      <pose>4.503 0 0.802 1.571 0 1.571</pose>
-      <link name='link'>
-        <collision name='collision'>
-          <pose>0 0 0.072 0 0 0</pose>
-          <geometry>
-            <box>
-              <size>0.2 0.2 0.005</size>
-            </box>
-          </geometry>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <mesh>
-              <scale>0.0254 0.0254 0.0254</scale>
-              <uri>/opt/ros/indigo/share/cob_gazebo_objects/Media/models/cb_9x6.dae</uri>
-            </mesh>
-          </geometry>
-        </visual>
-      </link>
-    </model>
-
-    <model name='box2'>
-      <static>true</static>
-      <pose>4.44 0.1125 0.1 0 0 0</pose>
-      <link name='link'>
-        <collision name='collision'>
-          <geometry>
-            <box>
-              <size>0.12 0.12 0.1</size>
-            </box>
-          </geometry>
-        </collision>
-        <visual name='visual'>
-          <geometry>
-            <box>
-              <size>0.12 0.12 0.1</size>
-            </box>
-          </geometry>
-          <material>
-            <script>
-              <uri>file://media/materials/scripts/gazebo.material</uri>
-              <name>Gazebo/Grey</name>
-            </script>
-          </material>
-        </visual>
-      </link>
-    </model>
--->
 
     <gui>
       <camera name='user_camera'>
