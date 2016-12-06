@@ -1,16 +1,14 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(robotino_calibration)
+project(relative_localization)
 
 set(catkin_RUN_PACKAGES			# all ROS packages from package.xml (libopencv-dev is system dependency --> sudo apt-get install)
-	cv_bridge
-	cob_fiducials
-	cob_object_detection_msgs
+	dynamic_reconfigure
 	geometry_msgs
-	image_transport
 	roscpp
 	roslib
 	sensor_msgs
 	tf
+	visualization_msgs
 )
 
 set(catkin_BUILD_PACKAGES 
@@ -26,14 +24,26 @@ find_package(catkin REQUIRED
 )
 
 ## System dependencies are found with CMake's conventions
-find_package(Boost REQUIRED COMPONENTS system filesystem)
+find_package(Boost REQUIRED COMPONENTS system)
 find_package(OpenCV REQUIRED)	# name identical to FindOpenCV.cmake in cmake_modules
-find_package(PCL REQUIRED)
 
+
+################################################
+## Declare ROS messages, services and actions ##
+################################################
+generate_dynamic_reconfigure_options(
+	cfg/RelativeLocalization.cfg
+)
 
 ###################################
 ## catkin specific configuration ##
 ###################################
+## The catkin_package macro generates cmake config files for your package
+## Declare things to be passed to dependent projects
+## INCLUDE_DIRS: uncomment this if you package contains header files
+## LIBRARIES: libraries you create in this project that dependent projects also need
+## CATKIN_DEPENDS: catkin_packages dependent projects also need
+## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 INCLUDE_DIRS
 	common/include
@@ -44,7 +54,6 @@ CATKIN_DEPENDS
 DEPENDS
 	Boost
 	OpenCV
-	PCL
 )
 
 ###########
@@ -59,23 +68,22 @@ include_directories(
 	${catkin_INCLUDE_DIRS} 		# same name as find_package
 	${Boost_INCLUDE_DIRS}
 	${OpenCV_INCLUDE_DIRS}
-	${PCL_INCLUDE_DIRS}
 )
 
-# calibration software
-add_executable(camera_base_calibration	ros/src/camera_base_calibration_node.cpp
-										ros/src/camera_base_calibration_marker.cpp
-										ros/src/camera_base_calibration_checkerboard.cpp
-										ros/src/camera_base_calibration_pitag.cpp
-										common/src/transformation_utilities.cpp
+# software for laser scanner based relative localization against landmarks
+add_executable(relative_localization_node
+						ros/src/relative_localization_node.cpp
+						ros/src/reference_localization.cpp
+						ros/src/box_localization.cpp
+						ros/src/corner_localization.cpp
+						common/src/relative_localization_utilities.cpp
 )
-target_link_libraries(camera_base_calibration
-	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
+add_dependencies(relative_localization_node ${catkin_EXPORTED_TARGETS} ${${PROJECT_NAME}_EXPORTED_TARGETS} ${PROJECT_NAME}_gencfg)
+target_link_libraries(relative_localization_node
+	${catkin_LIBRARIES}
 	${Boost_LIBRARIES}
 	${OpenCV_LIBRARIES}
-	${PCL_LIBRARIES}
 )
-add_dependencies(camera_base_calibration	${catkin_EXPORTED_TARGETS})
 
 
 #############
@@ -93,7 +101,7 @@ add_dependencies(camera_base_calibration	${catkin_EXPORTED_TARGETS})
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS camera_base_calibration
+install(TARGETS relative_localization_node
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

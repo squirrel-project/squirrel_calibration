@@ -1,0 +1,23 @@
+# Defines how fast new measurements are averaged into the transformation estimate (new_value = (1-update_rate)*old_value + update_rate*measurement). [0,1]
+# double
+update_rate: 0.75
+
+# The name of the computed child frame.
+# string
+child_frame_name: "/landmark_reference_nav"
+
+# If the laser scanner is mounted parallel to the ground plane and this flag is activated, the reference coordinate system child_frame_name will be established at ground height (instead of laser scanner mounting height)
+# bool
+reference_coordinate_system_at_ground: true
+
+# the (minimum) length of the frontal wall segment left of the laser scanner's origin (assuming the robot faces the wall), in [m]
+# double
+wall_length_left: 0.8
+
+# the (minimum) length of the frontal wall segment right of the laser scanner's origin (assuming the robot faces the wall), in [m]
+# double
+wall_length_right: 0.8
+
+# the maximum +/-y coordinate in laser scan to search for the localization box, in[m]
+# double
+box_search_width: 0.6

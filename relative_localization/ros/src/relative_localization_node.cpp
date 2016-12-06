@@ -10,9 +10,9 @@
  *****************************************************************
  *
 * \note
-* Repository name: squirrel_robotino
+* Repository name: squirrel_calibration
 * \note
-* ROS package name: checkerboard_localisation
+* ROS package name: relative_localization
  *
  * \author
  * Author: Richard Bormann
@@ -55,16 +55,31 @@
  *
  ****************************************************************/
 
-#include "robotino_calibration/checkerboard_localisation.h"
+#include "relative_localization/box_localization.h"
+#include "relative_localization/corner_localization.h"
 
 int main(int argc, char **argv)
 {
-	ros::init(argc, argv,"checkerboard_localisation");
+	ros::init(argc, argv,"relative_localization");
 
-	ros::NodeHandle nh;
+	ros::NodeHandle nh("~");
 
-	CheckerboardLocalization cl(nh);
+	// load parameters
+	std::string localization_method;
+	std::cout << "\n========== Relative Localization Parameters ==========\n";
+	nh.param<std::string>("localization_method", localization_method, "");
+	std::cout << "localization_method: " << localization_method << std::endl;
 
-	ros::spin();
+	if (localization_method.compare("box") == 0)
+	{
+		BoxLocalization cl(nh);
+		ros::spin();
+	}
+	else if (localization_method.compare("corner") == 0)
+	{
+		CornerLocalization cl(nh);
+		ros::spin();
+	}
+
 	return 0;
 }
