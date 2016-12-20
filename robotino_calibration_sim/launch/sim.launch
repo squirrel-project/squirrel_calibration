@@ -4,7 +4,7 @@
   <!-- define arguments -->
   <arg name="robot_env" default="calibration_room"/>
   <arg name="robot" default="robotino"/>
-  <arg name="marker" default="pitag"/>
+  <arg name="marker" default="empty"/>
 
   <arg name="paused" default="false"/>
   <arg name="use_sim_time" default="true"/>

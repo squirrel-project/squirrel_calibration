@@ -8,7 +8,7 @@
 	<arg name="throttled" default="false"/>
 	
 	<arg name="robot_env" default="calibration_room"/>
-	<arg name="marker" default="pitag"/>
+	<arg name="marker" default="empty"/>
 	
 	<!-- start gazebo with empty world -->
 	<include file="$(find cob_gazebo_worlds)/launch/empty.launch">
