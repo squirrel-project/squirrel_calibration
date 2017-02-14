@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <package format="2">
-	<name>robotino_calibration</name>
+	<name>relative_localization</name>
 	<version>0.0.0</version>
-	<description>The robotino_calibration package. Contains methods for camera base calibration via calibration checkerboards or via detecting specialized markers.</description>
+	<description>The relative_localization package. Contains methods for laser scanner based relative localization against landmarks such as walls or corners.</description>
 
 	<license>LGPL</license>
-	<url type="website">http://wiki.ros.org/robotino_calibration</url>
+	<!--url type="website">http://wiki.ros.org/relative_localization</url-->
 
 	<maintainer email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</maintainer>
 	<author email="richard.bormann@ipa.fraunhofer.de">Richard Bormann</author>
@@ -14,18 +14,14 @@
 
 	<depend>boost</depend>
 	<depend>cmake_modules</depend>
-	<depend>cob_fiducials</depend>
-	<depend>cob_object_detection_msgs</depend>
-	<depend>cv_bridge</depend>
-	<depend>dynamixel_msgs</depend>
+	<depend>dynamic_reconfigure</depend>
 	<depend>geometry_msgs</depend>
-	<depend>image_transport</depend>
 	<depend>libopencv-dev</depend>
-	<depend>libpcl-all-dev</depend>
 	<depend>roscpp</depend>
 	<depend>roslib</depend>
 	<depend>sensor_msgs</depend>
 	<depend>std_msgs</depend>
 	<depend>tf</depend>
+	<depend>visualization_msgs</depend>
 
 </package>

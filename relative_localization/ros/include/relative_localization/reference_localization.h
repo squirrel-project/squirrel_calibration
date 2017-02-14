@@ -10,16 +10,16 @@
  *****************************************************************
  *
 * \note
-* Repository name: squirrel_robotino
+* Repository name: squirrel_calibration
 * \note
-* ROS package name: checkerboard_localisation
+* ROS package name: relative_localization
  *
  * \author
- * Author: Richard Bormann
+ * Author: Marc Riedlinger
  * \author
  * Supervised by:
  *
- * \date Date of creation: 11.03.2015
+ * \date Date of creation: 25.08.2016
  *
  * \brief
  *
@@ -55,10 +55,11 @@
  *
  ****************************************************************/
 
-#ifndef CHECKERBOARD_LOCALISATION_H
-#define CHECKERBOARD_LOCALISATION_H
+#ifndef REFERENCE_LOCALIZATION_H_
+#define REFERENCE_LOCALIZATION_H_
 
 #include <iostream>
+#include <vector>
 
 // ROS
 #include "ros/ros.h"
@@ -69,84 +70,56 @@
 
 // tf
 #include <tf/tf.h>
+#include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
 
 // dynamic reconfigure
 #include <dynamic_reconfigure/server.h>
-#include <robotino_calibration/CheckerboardLocalisationConfig.h>
+#include <relative_localization/RelativeLocalizationConfig.h>
 
 // OpenCV
-#include <opencv/cv.h>
+//#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
+//#include <opencv2/highgui/highgui.hpp>
 
-
-class CheckerboardLocalization
+class ReferenceLocalization
 {
 public:
-	CheckerboardLocalization(ros::NodeHandle& nh);
-	~CheckerboardLocalization();
 
-	struct Point2d
-	{
-		double x;
-		double y;
+	ReferenceLocalization(ros::NodeHandle& nh);
+	virtual ~ReferenceLocalization();
 
-		Point2d()
-		{
-			x = 0.;
-			y = 0.;
-		}
+	// only works for laser scanners mounted parallel to the ground, assuming that laser scanner frame and base_link have the same z-axis
+	void ShiftReferenceFrameToGround(tf::StampedTransform& reference_frame);
+	// computes the transform from target_frame to source_frame (i.e. transform arrow is pointing from target_frame to source_frame)
+	bool getTransform(const std::string& target_frame, const std::string& source_frame, cv::Mat& T);
+	cv::Mat makeTransform(const cv::Mat& R, const cv::Mat& t);
 
-		Point2d(double x_, double y_)
-		{
-			x = x_;
-			y = y_;
-		}
+protected:
 
-		friend std::ostream& operator<<(std::ostream& os, const Point2d& p)
-		{
-			os << "(" << p.x << "," << p.y << ")";
-			return os;
-		}
-
-		void operator+=(const Point2d& p)
-		{
-			x += p.x;
-			y += p.y;
-		}
-
-		void operator/=(const double div)
-		{
-			x /= div;
-			y /= div;
-		}
-
-		void operator*=(const double fac)
-		{
-			x *= fac;
-			y *= fac;
-		}
-	};
-
-
-private:
-
-	void callback(const sensor_msgs::LaserScan::ConstPtr& laser_scan_msg);
-	void dynamicReconfigureCallback(robotino_calibration::CheckerboardLocalisationConfig& config, uint32_t level);
-	void fitLine(const std::vector<cv::Point2d>& points, cv::Vec4d& line, double inlier_ratio, double success_probability, double max_inlier_distance, bool draw_from_both_halves_of_point_set=false);
-	void publishWallVisualization(const std_msgs::Header& header, const double px, const double py, const double n0x, const double n0y);
-	void publishBoxPoints(const std_msgs::Header& header, const std::vector< std::vector<cv::Point2d> >& segments, const size_t largest_segment);
+	virtual void callback(const sensor_msgs::LaserScan::ConstPtr& laser_scan_msg) = 0;
+	virtual void dynamicReconfigureCallback(robotino_calibration::RelativeLocalizationConfig& config, uint32_t level);
 
 	ros::NodeHandle node_handle_;
 	ros::Subscriber laser_scan_sub_;
 	ros::Publisher marker_pub_;
 
 	tf::TransformBroadcaster transform_broadcaster_;
+	tf::TransformListener transform_listener_;
 
-	dynamic_reconfigure::Server<robotino_calibration::CheckerboardLocalisationConfig> dynamic_reconfigure_server_;
+	dynamic_reconfigure::Server<robotino_calibration::RelativeLocalizationConfig> dynamic_reconfigure_server_;
 	tf::Vector3 avg_translation_;
 	tf::Quaternion avg_orientation_;
+	double laser_scanner_mounting_height_;
+	bool laser_scanner_mounting_height_received_;
+
+	// parameters
 	double update_rate_;
 	std::string child_frame_name_;
+	bool reference_coordinate_system_at_ground_;	// if the laser scanner is mounted parallel to the ground plane and this flag is activated, the reference coordinate system child_frame_name will be established at ground height (instead of laser scanner mounting height)
+	double wall_length_left_;		// the length of the wall segment left of the checkerboard's origin, in[m]
+	double wall_length_right_;		// the length of the wall segment right of the checkerboard's origin, in[m]
 };
 
-#endif // CHECKERBOARD_LOCALISATION_H
+
+#endif // REFERENCE_LOCALIZATION_H_
