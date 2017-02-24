@@ -1,0 +1,5 @@
+- git:
+    uri: 'git@github.com:ipa320/cob_perception_common.git'
+    local-name: squirrel_robotino
+    version: indigo_dev
+
