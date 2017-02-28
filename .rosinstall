@@ -1,0 +1,5 @@
+- git:
+    uri: 'https://github.com/ipa320/cob_perception_common.git'
+    local-name: cob_perception_common
+    version: indigo_dev
+
