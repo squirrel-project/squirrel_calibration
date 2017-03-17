@@ -1,3 +1,6 @@
+Travis-CI: [![Build Status](https://travis-ci.org/squirrel-project/squirrel_calibration.svg?branch=indigo_dev)](https://travis-ci.org/squirrel-project/squirrel_calibration)
+
+
 <a id="top"/> 
 #squirrel_calibration
 

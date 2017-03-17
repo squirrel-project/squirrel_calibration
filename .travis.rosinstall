@@ -3,6 +3,6 @@
     local-name: cob_perception_common
     version: indigo_dev
 - git:
-    uri: 'https://github.com/ipa320/cob_object_perception.git'
+    uri: 'https://github.com/squirrel-project/cob_object_perception.git'
     local-name: cob_object_perception
     version: indigo_dev
