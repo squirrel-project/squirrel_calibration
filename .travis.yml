@@ -1,19 +1,18 @@
-sudo: required
-dist: trusty
-# Force travis to use its minimal image with default Python settings
+sudo: required 
+dist: trusty 
 language: generic
-compiler:
-  - gcc
-
+notifications:
+  email:
+    on_success: change
+    on_failure: always
 env:
   global:
-    - CATKIN_WS=~/catkin_ws
-    - CATKIN_WS_SRC=${CATKIN_WS}/src
-    - CATKIN_WS_UNDERLAY=~/catkin_ws_underlay
-    - CATKIN_WS_UNDERLAY_SRC=${CATKIN_WS_UNDERLAY}/src
-    - CI_ROS_DISTRO="indigo"
-    - ROS_PARALLEL_JOBS=-j1
-    - DEFAULT_ROSINSTALL="https://raw.githubusercontent.com/squirrel-project/squirrel_calibration/indigo_dev/.rosinstall"
-
+    - ROS_DISTRO="indigo"
+    - UPSTREAM_WORKSPACE=file
+    - ROSINSTALL_FILENAME=.travis.rosinstall
+  matrix:
+    - ROS_REPO=ros
 install:
-  - bash .travis.sh
+  - git clone https://github.com/ros-industrial/industrial_ci.git .ci_config
+script: .ci_config/travis.sh
+#  - source ./travis.sh  # Enable this when you have a package-local script 

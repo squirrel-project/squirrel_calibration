@@ -1,11 +1,13 @@
+Travis-CI: [![Build Status](https://travis-ci.org/squirrel-project/squirrel_calibration.svg?branch=indigo_dev)](https://travis-ci.org/squirrel-project/squirrel_calibration)
+
+# squirrel_calibration
 <a id="top"/> 
-#squirrel_calibration
 
 This repository provides calibration routines for the Robotino's camera and its mounting position.
 
 Technical Maintainer: [ipa-rmb](https://github.com/ipa-rmb/) (Richard Bormann, Fraunhofer IPA) - richard.bormann@ipa.fraunhofer.de
 
-##Contents
+## Contents
 
 1. <a href="#1--installation-requirements">Installation Requirements</a>
 2. <a href="#2--execution">Execution</a>
@@ -14,13 +16,13 @@ Technical Maintainer: [ipa-rmb](https://github.com/ipa-rmb/) (Richard Bormann, F
 
 ## 1. Installation Requirements: <a id="1--installation-requirements"/> 
 
-####Debian packages
+#### Debian packages
 The following packages have to be installed: boost, libopencv-dev, libpcl-all-dev
 
-####Squirrel packages
+#### Squirrel packages
 This repository requires to have the basic driver layer of Robotino (robotino_bringup) running, which is located in the repository [squirrel_robotino](https://github.com/squirrel-project/squirrel_robotino).
 
-####ROS packages
+#### ROS packages
 **Commonly**
 The ROS packages dependencies can be installed with the command:
 ```
