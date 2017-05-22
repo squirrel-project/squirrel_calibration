@@ -107,6 +107,14 @@ int main(int argc, char **argv)
 			armStatesSaved.push_back(currentArmState);
 		if ( currentCamState.size() > 0 )
 			camStatesSaved.push_back(currentCamState);
+
+		std::cout << "arm: [";
+		for (size_t i=0; i<currentArmState.size(); ++i)
+			std::cout << currentArmState[i] << (i==currentArmState.size()-1 ? "]\n" : ", ");
+		std::cout << "torso: [";
+			for (size_t i=0; i<currentCamState.size(); ++i)
+				std::cout << currentCamState[i] << (i==currentCamState.size()-1 ? "]\n" : ", ");
+		std::cout << std::endl;
 	}
 
 	return 0;
