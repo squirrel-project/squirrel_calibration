@@ -44,69 +44,120 @@ int main(int argc, char **argv)
 	ros::Subscriber cam_state = n.subscribe<sensor_msgs::JointState>("/torso/joint_states", 1, cameraStateCallback);
 
 	std::string storagePath = "raw_jointstate_saver/Output";
-	std::vector< std::vector<double> > armStatesSaved;
-	std::vector< std::vector<double> > camStatesSaved;
+	std::string path_file = storagePath + "/RawJointStates.txt";
 
 	std::stringstream str("mkdir -p " + storagePath);
-	system(str.str().c_str());
+	int result = system(str.str().c_str());
+
+	if ( result != 0 )
+	{
+		std::cout << "Error, could not create storage path!" << std::endl;
+		return -1;
+	}
 
 	while (ros::ok())
 	{
 		char c = '0';
 
-		std::cout << "Press 'e' to exit and save, any other input will store the current state." << std::endl;
+		std::cout << "Press 'e' to exit, any other key will append the current state to the text file." << std::endl;
 		std::cin >> c;
+		std::cin.ignore();
 		std::cout << std::endl;
 
-		if ( c == 'e' ) // Save storage array to txt file and exit
-		{
-			std::fstream file_output;
-			std::string path_file = storagePath + "/RawJointStates.txt";
-			std::stringstream data;
-
-			data << "ArmJointStates: [";
-			for ( size_t i = 0; i<armStatesSaved.size(); ++i )
-			{
-				for ( size_t j = 0; j<armStatesSaved[i].size(); ++j )
-				{
-					data << armStatesSaved[i][j];
-
-					if ( j < armStatesSaved[i].size()-1 )
-						data << ", ";
-					else if ( i < armStatesSaved.size()-1 ) // Don't add a comma on very last element
-						data << ",\n";
-				}
-			}
-			data << "]\n\nCameraJointStates: [";
-			for ( size_t i = 0; i<camStatesSaved.size(); ++i )
-			{
-				for ( size_t j = 0; j<camStatesSaved[i].size(); ++j )
-				{
-					data << camStatesSaved[i][j];
-
-					if ( j < camStatesSaved[i].size()-1 )
-						data << ", ";
-					else if ( i < camStatesSaved.size()-1 ) // Don't add a comma on very last element
-						data << ",\n";
-				}
-			}
-			data << "]\n\n";
-
-			file_output.open(path_file.c_str(), std::ios::out);
-			if ( file_output.is_open() )
-				file_output << data.str();
-			file_output.close();
-
+		if ( c == 'e' ) // Exit program
 			break;
+
+		ros::spinOnce(); // Get new data from callbacks
+
+		// Append current states to text file
+		std::fstream file_output;
+		std::string filecontent = "";
+		bool bWriteToFile = false;
+
+		// First read current data from file
+		file_output.open(path_file.c_str(), std::ios::in );
+		if ( file_output.is_open() )
+		{
+			while ( !file_output.eof() )
+			{
+				std::string line;
+				std::getline(file_output,line);
+				filecontent += line;
+				if ( !file_output.eof() )
+					filecontent += "\n";
+			}
+
+			file_output.close(); // Data has been read, now close
+		}
+		else
+		{
+			std::cout << "Warning, cannot open file for reading! If file didn't exist, it will be created now." << std::endl;
 		}
 
-		ros::spinOnce();
+		bool bIsEmpty = filecontent.empty();
 
-		// Append current states to storage vector
+		// Clear text file and write whole data to it
+		file_output.open(path_file.c_str(), std::ios::out | std::ios::trunc);
+		if ( !file_output.is_open() )
+		{
+			std::cout << "Error, cannot open file! Printing all data to screen to prevent loosing it:" << std::endl;
+			if ( !bIsEmpty )
+				std::cout << filecontent << std::endl;
+			continue;
+		}
+
+		if ( bIsEmpty )
+			filecontent = "ArmJointStates: []\n\nCameraJointStates: []";
+
 		if ( currentArmState.size() > 0 )
-			armStatesSaved.push_back(currentArmState);
+		{
+			std::stringstream newData("");
+			if ( !bIsEmpty )
+				newData << ",\n";
+
+			for ( size_t i=0; i<currentArmState.size(); ++i )
+				newData << currentArmState[i] << (i == currentArmState.size()-1 ? "]" : ", ");
+
+			size_t idx = filecontent.find("]");
+
+			if ( idx != std::string::npos )
+			{
+				filecontent.replace(idx,1,newData.str());
+				bWriteToFile = true;
+			}
+			else
+			{
+				std::cout << "Output file is corrupted, please delete it!" << std::endl;
+				return -1;
+			}
+		}
 		if ( currentCamState.size() > 0 )
-			camStatesSaved.push_back(currentCamState);
+		{
+			std::stringstream newData("");
+			if ( !bIsEmpty )
+				newData << ",\n";
+
+			for ( size_t i=0; i<currentCamState.size(); ++i )
+				newData << currentCamState[i] << (i == currentCamState.size()-1 ? "]" : ", ");
+
+			size_t idx = filecontent.rfind("]");
+
+			if ( idx != std::string::npos )
+			{
+				filecontent.replace(idx,1,newData.str());
+				bWriteToFile = true;
+			}
+			else
+			{
+				std::cout << "Output file is corrupted, please delete it!" << std::endl;
+				return -1;
+			}
+		}
+
+		if ( bWriteToFile )
+			file_output << filecontent;
+
+		file_output.close();
 
 		std::cout << "arm: [";
 		for (size_t i=0; i<currentArmState.size(); ++i)
