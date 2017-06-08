@@ -4,6 +4,9 @@
 #include <iostream>
 #include <sstream>
 #include <fstream>
+#include <limits>
+
+#include <boost/filesystem.hpp>
 
 
 // Global variables
@@ -37,31 +40,51 @@ void cameraStateCallback(const sensor_msgs::JointState::ConstPtr& msg)
 
 int main(int argc, char **argv)
 {
-	ros::init(argc, argv, "raw_saver");
+	ros::init(argc, argv, "jointstate_saver");
 
-	ros::NodeHandle n;
-	ros::Subscriber arm_state = n.subscribe<sensor_msgs::JointState>("/arm/joint_states", 1, armStateCallback);
-	ros::Subscriber cam_state = n.subscribe<sensor_msgs::JointState>("/torso/joint_states", 1, cameraStateCallback);
+	ros::NodeHandle n("~");
 
-	std::string storagePath = "raw_jointstate_saver/Output";
-	std::string path_file = storagePath + "/RawJointStates.txt";
+	std::cout << "---------------- Joint Saver ----------------" << std::endl;
+	std::string storagePath = "";
+	n.param<std::string>("storage_path", storagePath, "jointstate_saver/Output");
+	std::cout << "storage_path: " << storagePath << std::endl;
 
-	std::stringstream str("mkdir -p " + storagePath);
-	int result = system(str.str().c_str());
+	std::string file_name = "";
+	n.param<std::string>("file_name", file_name, "JointStates.txt");
+	std::cout << "file_name: " << file_name << std::endl;
 
-	if ( result != 0 )
+	std::string jointstate_topic_arm = "";
+	n.param<std::string>("jointstate_topic_arm", jointstate_topic_arm, "/arm/joint_states");
+	std::cout << "jointstate_topic_arm: " << jointstate_topic_arm << std::endl;
+
+	std::string jointstate_topic_camera = "";
+	n.param<std::string>("jointstate_topic_camera", jointstate_topic_camera, "/torso/joint_states");
+	std::cout << "jointstate_topic_camera: " << jointstate_topic_camera << std::endl;
+	std::cout << "---------------------------------------------" << std::endl << std::endl;
+
+	ros::Subscriber arm_state = n.subscribe<sensor_msgs::JointState>(jointstate_topic_arm, 1, armStateCallback);
+	ros::Subscriber cam_state = n.subscribe<sensor_msgs::JointState>(jointstate_topic_camera, 1, cameraStateCallback);
+
+	std::string path_file = storagePath + "/" + file_name;
+
+	boost::filesystem::path storage_path(storagePath);
+	if (boost::filesystem::exists(storage_path) == false)
 	{
-		std::cout << "Error, could not create storage path!" << std::endl;
-		return -1;
+		if (boost::filesystem::create_directories(storage_path) == false && boost::filesystem::exists(storage_path) == false)
+		{
+			std::cout << "Error: Could not create storage directory " << storage_path << std::endl;
+			return -1;
+		}
 	}
 
 	while (ros::ok())
 	{
 		char c = '0';
 
-		std::cout << "Press 'e' to exit, any other key will append the current state to the text file." << std::endl;
+		std::cout << "Press 'e' to exit, any other key will append the current states to the storage file." << std::endl;
 		std::cin >> c;
-		std::cin.ignore();
+		std::cin.clear();
+		std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
 		std::cout << std::endl;
 
 		if ( c == 'e' ) // Exit program
@@ -74,7 +97,7 @@ int main(int argc, char **argv)
 		std::string filecontent = "";
 		bool bWriteToFile = false;
 
-		// First read current data from file
+		// First, read current data from file
 		file_output.open(path_file.c_str(), std::ios::in );
 		if ( file_output.is_open() )
 		{
@@ -91,7 +114,7 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			std::cout << "Warning, cannot open file for reading! If file didn't exist, it will be created now." << std::endl;
+			std::cout << "Warning, couldn't open storage file for reading! If it had not existed before, it will be created now." << std::endl << std::endl;
 		}
 
 		bool bIsEmpty = filecontent.empty();
@@ -100,13 +123,17 @@ int main(int argc, char **argv)
 		file_output.open(path_file.c_str(), std::ios::out | std::ios::trunc);
 		if ( !file_output.is_open() )
 		{
-			std::cout << "Error, cannot open file! Printing all data to screen to prevent loosing it:" << std::endl;
+			std::cout << "Error, cannot open storage file!" << std::endl;
 			if ( !bIsEmpty )
+			{
+				std::cout << "Printing all data to screen to prevent data loss:" << std::endl;
 				std::cout << filecontent << std::endl;
+			}
+
 			continue;
 		}
 
-		if ( bIsEmpty )
+		if ( bIsEmpty ) // Initialize file content
 			filecontent = "ArmJointStates: []\n\nCameraJointStates: []";
 
 		if ( currentArmState.size() > 0 )

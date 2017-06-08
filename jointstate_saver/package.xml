@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>raw_jointstate_saver</name>
+  <name>jointstate_saver</name>
   <version>0.0.0</version>
-  <description>Allows to save joint states of arm and camera to text file of RAW.</description>
+  <description>Allows to save the joint states of arm and camera of robots to disk. This can be used to create calibration trajectories.</description>
 
   <maintainer email="m.riedlinger@live.de">Marc Riedlinger</maintainer>
 

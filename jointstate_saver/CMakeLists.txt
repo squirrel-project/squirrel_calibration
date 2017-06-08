@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(raw_jointstate_saver)
+project(jointstate_saver)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -10,7 +10,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 ## System dependencies are found with CMake's conventions
-# find_package(Boost REQUIRED COMPONENTS system)
+find_package(Boost REQUIRED COMPONENTS filesystem)
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -100,7 +100,7 @@ find_package(catkin REQUIRED COMPONENTS
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
 #  INCLUDE_DIRS include
-#  LIBRARIES raw_jointstate_saver
+#  LIBRARIES jointstate_saver
 #  CATKIN_DEPENDS roscpp
 #  DEPENDS system_lib
 )
@@ -117,24 +117,24 @@ include_directories(
 )
 
 ## Declare a C++ library
-# add_library(raw_jointstate_saver
-#   src/${PROJECT_NAME}/raw_jointstate_saver.cpp
+# add_library(jointstate_saver
+#   src/${PROJECT_NAME}/jointstate_saver.cpp
 # )
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
 ## either from message generation or dynamic reconfigure
-# add_dependencies(raw_jointstate_saver ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(jointstate_saver ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Declare a C++ executable
- add_executable(raw_jointstate_saver_node src/raw_jointstate_saver_node.cpp)
+ add_executable(jointstate_saver_node src/jointstate_saver_node.cpp)
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
- add_dependencies(raw_jointstate_saver_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+ add_dependencies(jointstate_saver_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
- target_link_libraries(raw_jointstate_saver_node
+ target_link_libraries(jointstate_saver_node
    ${catkin_LIBRARIES}
  )
 
@@ -153,7 +153,7 @@ include_directories(
 # )
 
 ## Mark executables and/or libraries for installation
-# install(TARGETS raw_jointstate_saver raw_jointstate_saver_node
+# install(TARGETS jointstate_saver jointstate_saver_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 #   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
@@ -178,7 +178,7 @@ include_directories(
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_raw_jointstate_saver.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_jointstate_saver.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()
