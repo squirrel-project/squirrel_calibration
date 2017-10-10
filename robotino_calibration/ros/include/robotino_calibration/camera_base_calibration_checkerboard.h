@@ -75,14 +75,12 @@ public:
 
 protected:
 
-	bool convertImageMessageToMat(const sensor_msgs::Image::ConstPtr& image_msg, cv_bridge::CvImageConstPtr& image_ptr, cv::Mat& image);
-
 	void imageCallback(const sensor_msgs::ImageConstPtr& color_image_msg);
 
 	// acquires images automatically from all set up robot configurations and detects the checkerboard points
 	// @param load_images loads calibration images and transformations from hard disk if set to true (images and transformations are stored automatically during recording from a real camera)
 	// retrieves the image size, checkerboard points per image as well as all relevant transformations
-	bool acquireCalibrationImages(const std::vector<RobotConfiguration>& robot_configurations, const cv::Size pattern_size, const bool load_images,
+	bool acquireCalibrationImages(const std::vector<calibration_utilities::RobotConfiguration>& robot_configurations, const cv::Size pattern_size, const bool load_images,
 			int& image_width, int& image_height, std::vector< std::vector<cv::Point2f> >& points_2d_per_image,
 			std::vector<cv::Mat>& T_base_to_checkerboard_vector, std::vector<cv::Mat>& T_torso_lower_to_torso_upper_vector,
 			std::vector<cv::Mat>& T_camera_to_camera_optical_vector);
@@ -91,13 +89,13 @@ protected:
 	int acquireCalibrationImage(int& image_width, int& image_height, std::vector<cv::Point2f>& points_2d_per_image,
 			const cv::Size pattern_size, const bool load_images, int& image_counter);
 
-	// generates the 3d coordinates of the checkerboard in local checkerboard frame coordinates
-	void computeCheckerboard3dPoints(std::vector< std::vector<cv::Point3f> >& pattern_points, const cv::Size pattern_size, const double chessboard_cell_size, const int number_images);
-
 	// intrinsic camera calibration (+ distortion coefficients)
 	void intrinsicCalibration(const std::vector< std::vector<cv::Point3f> >& pattern_points, const std::vector< std::vector<cv::Point2f> >& camera_points_2d_per_image, const cv::Size& image_size, std::vector<cv::Mat>& rvecs_jai, std::vector<cv::Mat>& tvecs_jai);
 
 
+	std::string checkerboard_frame_;
+
+	std::string camera_image_topic_;
 	image_transport::ImageTransport* it_;
 	image_transport::SubscriberFilter color_image_sub_; ///< Color camera image input topic
 	boost::mutex camera_data_mutex_;	// secures read and write operations on camera data

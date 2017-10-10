@@ -63,10 +63,24 @@ CornerLocalization::CornerLocalization(ros::NodeHandle& nh)
 		: ReferenceLocalization(nh)
 {
 	// load subclass parameters
-	node_handle_.param("max_wall_side_distance", max_wall_side_distance_, 0.5);
-	std::cout << "max_wall_side_distance: " << max_wall_side_distance_ << std::endl;
+	// read out user-defined polygon that defines the area of laser scanner points being taken into account for side wall detection
+	std::vector<double> temp;
+	node_handle_.getParam("side_wall_polygon", temp);
+	const int num_points = temp.size()/2;
+	if (temp.size()%2 != 0 || temp.size() < 3*2)
+	{
+		ROS_ERROR("The side_wall_polygon vector should contain at least 3 points with 2 values (x,y) each.");
+		return;
+	}
+	std::cout << "Side wall polygon points:\n";
+	for (int i=0; i<num_points; ++i)
+	{
+		side_wall_polygon_.push_back(cv::Point2f(temp[2*i], temp[2*i+1]));
+		std::cout << temp[2*i] << "\t" << temp[2*i+1] << std::endl;
+	}
 
 	ROS_INFO("CornerLocalization: Initialized.");
+	initialized_ = true;
 }
 
 CornerLocalization::~CornerLocalization()
@@ -76,34 +90,57 @@ CornerLocalization::~CornerLocalization()
 //#define DEBUG_OUTPUT
 void CornerLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& laser_scan_msg)
 {
-	// Retrieve points from side and front wall and put each of those in separate lists
-	std::vector<cv::Point2d> scan_front;
-	std::vector<cv::Point2d> scan_all;
+	if (initialized_ == false)
+		return;
 
-	for ( size_t i=0; i<laser_scan_msg->ranges.size(); i++ )
+	if (marker_pub_.getNumSubscribers() > 0) // Display wall detection polygons
 	{
-		double angle = laser_scan_msg->angle_min + i * laser_scan_msg->angle_increment; // [rad]
-		double dist = laser_scan_msg->ranges[i];
-		cv::Point2d point(dist*cos(angle), dist*sin(angle));
-
-		if (point.y > -wall_length_right_ && point.y < wall_length_left_) // front wall points
-			scan_front.push_back(point);
-
-		// store all points in here. Use distant measure to front wall later on to extract side wall points
-		if (point.y > -2*wall_length_right_ && point.y < 2*wall_length_left_) // front wall points
-			scan_all.push_back(point);
+		VisualizationUtilities::publishDetectionPolygon(laser_scan_msg->header, "front_wall_polygon", front_wall_polygon_, 0, marker_pub_);
+		VisualizationUtilities::publishDetectionPolygon(laser_scan_msg->header, "side_wall_polygon", side_wall_polygon_, 0, marker_pub_, 1.0, 0.5, 0.0);
 	}
 
-	// match line to scan_front
-	const double inlier_distance = 0.01;
-	cv::Vec4d line_front;
-	RelativeLocalizationUtilities::fitLine(scan_front, line_front, 0.1, 0.99999, inlier_distance, false);
-	if (line_front.val[0] != line_front.val[0] || line_front.val[1] != line_front.val[1] || line_front.val[2] != line_front.val[2] || line_front.val[3] != line_front.val[3])
-	{
-		ROS_WARN("CornerLocalization::callback: frontal wall could not be estimated.");
+	// ---------- 1. data preparation ----------
+	// retrieve transform from laser scanner to base
+	cv::Mat T;
+	bool received_transform = RelativeLocalizationUtilities::getTransform(transform_listener_, base_frame_, laser_scan_msg->header.frame_id, T);
+	if (received_transform==false)
+ 	{
+		ROS_WARN("CornerLocalization::callback: Could not determine transform T between laser scanner and base.");
 		return;
 	}
 
+	// retrieve points from side and front wall and put each of those in separate lists
+	std::vector<cv::Point2d> scan_front;
+	std::vector<cv::Point2d> scan_side_all;
+	for (size_t i=0; i<laser_scan_msg->ranges.size(); i++ )
+	{
+		double angle = laser_scan_msg->angle_min + i * laser_scan_msg->angle_increment; // [rad]
+		double dist = laser_scan_msg->ranges[i]; // [m]
+
+		// transform laser scanner points to base frame
+		cv::Mat point_laser(cv::Vec4d(dist*cos(angle), dist*sin(angle), 0, 1.0));
+		cv::Mat point_base_mat = T*point_laser;
+		cv::Point2f point_2d_base(point_base_mat.at<double>(0), point_base_mat.at<double>(1));
+
+		// check if point is inside front wall polygon and push to scan_front if that's the case
+		if (cv::pointPolygonTest(front_wall_polygon_, point_2d_base, false) >= 0.f) // front wall points
+			scan_front.push_back(point_2d_base);
+
+		// store all points from the side polygon in here, use distance measure to front wall later to exclude front wall points
+		if (cv::pointPolygonTest(side_wall_polygon_, point_2d_base, false) >= 0.f) // side wall points
+			scan_side_all.push_back(point_2d_base);
+	}
+
+	// ---------- 2. front wall estimation ----------
+	// search for front wall until a suitable estimate is found, i.e. when scalar product of line normal and robot's x-axis do not differ by more than 45deg angle
+	const double inlier_distance = 0.01;
+	cv::Vec4d line_front;
+	bool found_front_line = estimateFrontWall(scan_front, line_front, 0.1, 0.99999, inlier_distance, 10);
+	if (found_front_line == false)
+	{
+		ROS_WARN("CornerLocalization::callback: front wall could not be estimated.");
+		return;
+	}
 	const double px_f = line_front.val[0];	// coordinates of a point on front the wall
 	const double py_f = line_front.val[1];
 	const double n0x_f = line_front.val[2];	// normal direction on the front wall (in floor plane x-y)
@@ -112,37 +149,41 @@ void CornerLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& laser_
 	if (marker_pub_.getNumSubscribers() > 0)
 		VisualizationUtilities::publishWallVisualization(laser_scan_msg->header, "wall_front", px_f, py_f, n0x_f, n0y_f, marker_pub_);
 
+	// ---------- 3. side wall estimation ----------
 	std::vector<cv::Point2d> scan_side;
-	for ( size_t i=0; i<scan_all.size(); i++ )
+	for ( size_t i=0; i<scan_side_all.size(); i++ )
 	{
-		const double d = RelativeLocalizationUtilities::distanceToLine(px_f, py_f, n0x_f, n0y_f, scan_all[i].x, scan_all[i].y);	// distance to front wall line
+		const double d = RelativeLocalizationUtilities::distanceToLine(px_f, py_f, n0x_f, n0y_f, scan_side_all[i].x, scan_side_all[i].y);	// distance to front wall line
 		if (d > 2*inlier_distance)
-			scan_side.push_back(scan_all[i]);
-	}
-
-	if (scan_side.size() < 2)
-	{
-		ROS_WARN("CornerLocalization::callback: no points left for estimating side wall.");
-		return;
+			scan_side.push_back(scan_side_all[i]);
 	}
 
 	// search a side wall until one is found, which is not too distant and approximately perpendicular to the first
 	cv::Vec4d line_side;
+	bool found_side_line = false;
 	for (int i=0; i<10; ++i)
 	{
+		if (scan_side.size() < 2)
+		{
+			ROS_WARN("CornerLocalization::callback: no points left for estimating side wall.");
+			return;
+		}
+
 		// match line to scan_side
-		RelativeLocalizationUtilities::fitLine(scan_side, line_side, 0.1, 0.99999, inlier_distance, false);
-		if (line_side.val[0] != line_side.val[0] || line_side.val[1] != line_side.val[1] || line_side.val[2] != line_side.val[2] || line_side.val[3] != line_side.val[3])
+		bool result = RelativeLocalizationUtilities::fitLine(scan_side, line_side, 0.1, 0.99999, inlier_distance, false);
+		if (!result || line_side.val[0] != line_side.val[0] || line_side.val[1] != line_side.val[1] || line_side.val[2] != line_side.val[2] || line_side.val[3] != line_side.val[3])
 		{
 			ROS_WARN("CornerLocalization::callback: side wall could not be estimated in trial %i. Trying next.", i);
 			continue;
 		}
 
 		// check if line is good enough
-		const double wall_distance_to_laser_scanner = RelativeLocalizationUtilities::distanceToLine(line_side.val[0], line_side.val[1], line_side.val[2], line_side.val[3], 0., 0.);
 		const double scalar_product = n0x_f*line_side.val[2] + n0y_f*line_side.val[3];
-		if (wall_distance_to_laser_scanner < max_wall_side_distance_ && fabs(scalar_product) < 0.05)
+		if (fabs(scalar_product) < 0.05)
+		{
+			found_side_line = true;
 			break;
+		}
 
 		// remove points from last line
 		for (std::vector<cv::Point2d>::iterator it = scan_side.begin(); it!=scan_side.end(); )
@@ -154,6 +195,11 @@ void CornerLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& laser_
 				++it;
 		}
 	}
+	if (found_side_line == false)
+	{
+		ROS_WARN("CornerLocalization::callback: side wall could not be estimated.");
+		return;
+	}
 
 	const double px_s = line_side.val[0];	// coordinates of a point on the side wall
 	const double py_s = line_side.val[1];
@@ -164,6 +210,7 @@ void CornerLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& laser_
 	if (marker_pub_.getNumSubscribers() > 0)
 		VisualizationUtilities::publishWallVisualization(laser_scan_msg->header, "wall_side", px_s, py_s, n0x_s, n0y_s, marker_pub_);
 
+	// ---------- 4. publish tf ----------
 	// compute intersection of two wall segments
 	cv::Point2d corner_point;
 	const double a = n0x_f*px_f+n0y_f*py_f;
@@ -187,55 +234,12 @@ void CornerLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& laser_
 
 	// determine coordinate system generated by corner at the intersection of two walls (laser scanner coordinate system: x=forward, y=left, z=up)
 	// corner coordinate system is attached to the corner of the the walls
-	bool publish_tf = true;
-	tf::StampedTransform transform_table_reference;
-	// offset to laser scanner coordinate system
-	// intersection of line from left block point in normal direction with wall line
-	double j = ((corner_point.x-px_f)*n0y_f + (py_f-corner_point.y)*n0x_f) / (n0x_f*n0x_f + n0y_f*n0y_f);
-	double x = px_f + j*n0y_f;
-	double y = py_f - j*n0x_f;
-	tf::Vector3 translation(x, y, 0.);
-	// direction of x-axis in laser scanner coordinate system
-	cv::Point2d normal(n0x_f, n0y_f);
-	if (normal.x*translation.getX() + normal.y*translation.getY() < 0)
-		normal *= -1.;
-	double angle = atan2(normal.y, normal.x);
-	tf::Quaternion orientation(tf::Vector3(0,0,1), angle);
-
-	// update transform
-	if (avg_translation_.isZero())
-	{
-		// use value directly on first message
-		avg_translation_ = translation;
-		avg_orientation_ = orientation;
-	}
-	else
-	{
-		// update value
-		avg_translation_ = (1.0 - update_rate_) * avg_translation_ + update_rate_ * translation;
-		avg_orientation_.setW((1.0 - update_rate_) * avg_orientation_.getW() + update_rate_ * orientation.getW());
-		avg_orientation_.setX((1.0 - update_rate_) * avg_orientation_.getX() + update_rate_ * orientation.getX());
-		avg_orientation_.setY((1.0 - update_rate_) * avg_orientation_.getY() + update_rate_ * orientation.getY());
-		avg_orientation_.setZ((1.0 - update_rate_) * avg_orientation_.getZ() + update_rate_ * orientation.getZ());
-	}
-
-	// transform
-	transform_table_reference.setOrigin(avg_translation_);
-	transform_table_reference.setRotation(avg_orientation_);
-	tf::StampedTransform tf_msg(transform_table_reference, laser_scan_msg->header.stamp, laser_scan_msg->header.frame_id, child_frame_name_);
-	if (reference_coordinate_system_at_ground_ == true)
-		ShiftReferenceFrameToGround(tf_msg);
-
-	// publish coordinate system on tf
-	if (publish_tf == true)
-	{
-		transform_broadcaster_.sendTransform(tf_msg);
-	}
+	computeAndPublishChildFrame(line_front, corner_point, laser_scan_msg->header.stamp);
 }
 
 void CornerLocalization::dynamicReconfigureCallback(robotino_calibration::RelativeLocalizationConfig &config, uint32_t level)
 {
 	ReferenceLocalization::dynamicReconfigureCallback(config, level);
-	max_wall_side_distance_ = config.max_wall_side_distance;
-	std::cout << "max_wall_side_distance_=" << max_wall_side_distance_ << "\n";
+//	max_wall_side_distance_ = config.max_wall_side_distance;
+//	std::cout << " max_wall_side_distance_=" << max_wall_side_distance_ << "\n";
 }

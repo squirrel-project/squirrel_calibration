@@ -35,6 +35,13 @@ generate_dynamic_reconfigure_options(
 	cfg/RelativeLocalization.cfg
 )
 
+## Generate services in the 'srv' folder
+#add_service_files(
+#   FILES
+#)
+
+#generate_messages()
+
 ###################################
 ## catkin specific configuration ##
 ###################################

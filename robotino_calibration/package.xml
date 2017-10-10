@@ -16,8 +16,8 @@
 	<depend>cmake_modules</depend>
 	<depend>cob_fiducials</depend>
 	<depend>cob_object_detection_msgs</depend>
+	<depend>control_msgs</depend>
 	<depend>cv_bridge</depend>
-	<depend>dynamixel_msgs</depend>
 	<depend>geometry_msgs</depend>
 	<depend>image_transport</depend>
 	<depend>libopencv-dev</depend>
@@ -27,5 +27,6 @@
 	<depend>sensor_msgs</depend>
 	<depend>std_msgs</depend>
 	<depend>tf</depend>
+	<depend>trajectory_msgs</depend>
 
 </package>

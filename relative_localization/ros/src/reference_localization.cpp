@@ -57,31 +57,46 @@
 
 
 #include <relative_localization/reference_localization.h>
-#include <relative_localization/visualization_utilities.h>
 #include <relative_localization/relative_localization_utilities.h>
 
 
 ReferenceLocalization::ReferenceLocalization(ros::NodeHandle& nh)
-		: node_handle_(nh), transform_listener_(nh), laser_scanner_mounting_height_(0.), laser_scanner_mounting_height_received_(false)
+		: node_handle_(nh), transform_listener_(nh), initialized_(false)
 {
 	// load parameters
-	std::cout << "\n========== Box Localization Parameters ==========\n";
+	std::cout << "\n========== Reference Localization Parameters ==========\n";
 	node_handle_.param("update_rate", update_rate_, 0.75);
 	std::cout << "update_rate: " << update_rate_ << std::endl;
 	node_handle_.param<std::string>("child_frame_name", child_frame_name_, "");
 	std::cout << "child_frame_name: " << child_frame_name_ << std::endl;
-	node_handle_.param("reference_coordinate_system_at_ground", reference_coordinate_system_at_ground_, false);
-	std::cout << "reference_coordinate_system_at_ground: " << reference_coordinate_system_at_ground_ << std::endl;
-	node_handle_.param("wall_length_left", wall_length_left_, 0.75);
-	std::cout << "wall_length_left: " << wall_length_left_ << std::endl;
-	node_handle_.param("wall_length_right", wall_length_right_, 0.75);
-	std::cout << "wall_length_right: " << wall_length_right_ << std::endl;
+	node_handle_.param<std::string>("laser_scanner_topic_in", laser_scanner_topic_in_, "/scan");
+	std::cout << "laser_scanner_topic_in: " << laser_scanner_topic_in_ << std::endl;
+	node_handle_.param<std::string>("base_frame", base_frame_, "base_link");
+	std::cout << "base_frame: " << base_frame_ << std::endl;
+	node_handle_.param("base_height", base_height_, 0.0);
+	std::cout << "base_height: " << base_height_ << std::endl;
+
+	// read out user-defined polygon that defines the area of laser scanner points being taken into account for front wall detection
+	std::vector<double> temp;
+	node_handle_.getParam("front_wall_polygon", temp);
+	const int num_points = temp.size()/2;
+	if (temp.size()%2 != 0 || temp.size() < 3*2)
+	{
+		ROS_ERROR("The front_wall_polygon vector should contain at least 3 points with 2 values (x,y) each.");
+		return;
+	}
+	std::cout << "Front wall polygon points:\n";
+	for (int i=0; i<num_points; ++i)
+	{
+		front_wall_polygon_.push_back(cv::Point2f(temp[2*i], temp[2*i+1]));
+		std::cout << temp[2*i] << "\t" << temp[2*i+1] << std::endl;
+	}
 
 	// publishers
 	marker_pub_ = node_handle_.advertise<visualization_msgs::Marker>("wall_marker", 1);
 
 	// subscribers
-	laser_scan_sub_ = node_handle_.subscribe("laser_scan_in", 0, &ReferenceLocalization::callback, this);
+	laser_scan_sub_ = node_handle_.subscribe(laser_scanner_topic_in_, 0, &ReferenceLocalization::callback, this);
 
 	// dynamic reconfigure
 	dynamic_reconfigure_server_.setCallback(boost::bind(&ReferenceLocalization::dynamicReconfigureCallback, this, _1, _2));
@@ -98,63 +113,115 @@ void ReferenceLocalization::dynamicReconfigureCallback(robotino_calibration::Rel
 {
 	update_rate_ = config.update_rate;
 	child_frame_name_ = config.child_frame_name;
-	wall_length_left_ = config.wall_length_left;
-	wall_length_right_ = config.wall_length_right;
 	std::cout << "Reconfigure request with\n update_rate=" << update_rate_
-			<< "\n child_frame_name=" << child_frame_name_
-			<< "\n wall_length_left=" << wall_length_left_
-			<< "\n wall_length_right=" << wall_length_right_ << "\n";
+			<< "\n child_frame_name=" << child_frame_name_ << "\n";
+}
+
+bool ReferenceLocalization::estimateFrontWall(std::vector<cv::Point2d>& scan_front, cv::Vec4d& line_front, const double inlier_ratio, const double success_probability,
+		const double inlier_distance, const int repetitions)
+{
+	// search for front wall until a suitable estimate is found, i.e. when scalar product of line normal and robot's x-axis do not differ by more than 45deg angle
+	bool found_front_line = false;
+	for (int i=0; i<repetitions; ++i)
+	{
+		if (scan_front.size() < 2)
+		{
+			ROS_WARN("ReferenceLocalization::estimateFrontWall: no points left for estimating front wall.");
+			return false;
+		}
+
+		// match line to scan_front
+		bool result = RelativeLocalizationUtilities::fitLine(scan_front, line_front, 0.1, 0.99999, inlier_distance, false);
+		if (!result || line_front.val[0] != line_front.val[0] || line_front.val[1] != line_front.val[1] || line_front.val[2] != line_front.val[2] || line_front.val[3] != line_front.val[3]) // check for NaN
+		{
+			ROS_WARN("ReferenceLocalization::estimateFrontWall: front wall could not be estimated in trial %i. Trying next.", i);
+			continue;
+		}
+
+		// check if line is good enough, i.e. if the angle between the front wall line normal and the robot base' x-axis (i.e. the axis pointing towards the front wall) is below 45deg
+		const double scalar_product = line_front.val[2];	// = 1*line_front.val[2]+0*line_front.val[3]
+		if (fabs(scalar_product) > 0.707)
+		{
+			found_front_line = true;
+			break;
+		}
+
+		// remove points from last line
+		for (std::vector<cv::Point2d>::iterator it = scan_front.begin(); it!=scan_front.end(); )
+		{
+			const double dist = RelativeLocalizationUtilities::distanceToLine(line_front.val[0], line_front.val[1], line_front.val[2], line_front.val[3], it->x, it->y);
+			if (dist <= inlier_distance)
+				it = scan_front.erase(it);
+			else
+				++it;
+		}
+	}
+	if (found_front_line == false)
+		ROS_WARN("ReferenceLocalization::estimateFrontWall: front wall could not be estimated.");
+
+	return found_front_line;
+}
+
+void ReferenceLocalization::computeAndPublishChildFrame(const cv::Vec4d& line, const cv::Point2d& corner_point, const std_msgs::Header::_stamp_type& time_stamp)
+{
+	// block coordinate system is attached at the left corner of the block directly on the wall surface
+	bool publish_tf = true;
+	const double px = line.val[0];	// coordinates of a point on the wall
+	const double py = line.val[1];
+	const double n0x = line.val[2];	// normal direction on the wall (in floor plane x-y)
+	const double n0y = line.val[3];
+	tf::StampedTransform transform_table_reference;
+	// offset to base frame
+	// intersection of line from left block point in normal direction with wall line
+	// calculate projection (j*n0') of corner to wall: n0' = n0 rotated by 90°, to get the normal vector in direction of the wall
+	// j = projection length
+	// retrieve translation p' from base frame to corner frame
+	// n0' = [n0y; -n0x]
+	// p' = p + j*n0'
+	double j = ((corner_point.x-px)*n0y + (py-corner_point.y)*n0x) / (n0x*n0x + n0y*n0y); // j = (corner - p) dot n0'
+	double x = px + j*n0y;
+	double y = py - j*n0x;
+	tf::Vector3 translation(x, y, 0.);
+	// direction of x-axis in base frame
+	cv::Point2d normal(n0x, n0y);
+	if (normal.x*translation.getX() + normal.y*translation.getY() < 0)
+		normal *= -1.;
+	double angle = atan2(normal.y, normal.x);
+	tf::Quaternion orientation(tf::Vector3(0,0,1), angle); // rotation around z by value of angle
+
+	// update transform
+	if (avg_translation_.isZero())
+	{
+		// use value directly on first message
+		avg_translation_ = translation;
+		avg_orientation_ = orientation;
+	}
+	else
+	{
+		// update value
+		avg_translation_ = (1.0 - update_rate_) * avg_translation_ + update_rate_ * translation;
+		avg_orientation_.setW((1.0 - update_rate_) * avg_orientation_.getW() + update_rate_ * orientation.getW());
+		avg_orientation_.setX((1.0 - update_rate_) * avg_orientation_.getX() + update_rate_ * orientation.getX());
+		avg_orientation_.setY((1.0 - update_rate_) * avg_orientation_.getY() + update_rate_ * orientation.getY());
+		avg_orientation_.setZ((1.0 - update_rate_) * avg_orientation_.getZ() + update_rate_ * orientation.getZ());
+	}
+
+	// transform
+	transform_table_reference.setOrigin(avg_translation_);
+	transform_table_reference.setRotation(avg_orientation_);
+	tf::StampedTransform tf_msg(transform_table_reference, time_stamp, base_frame_, child_frame_name_);
+	shiftReferenceFrameToGround(tf_msg);
+
+	// publish coordinate system on tf
+	if (publish_tf == true)
+	{
+		transform_broadcaster_.sendTransform(tf_msg);
+	}
 }
 
 // only works for laser scanners mounted parallel to the ground, assuming that laser scanner frame and base_link have the same z-axis
-void ReferenceLocalization::ShiftReferenceFrameToGround(tf::StampedTransform& reference_frame)
+void ReferenceLocalization::shiftReferenceFrameToGround(tf::StampedTransform& reference_frame)
 {
-	cv::Mat T;
-	if (laser_scanner_mounting_height_received_==false && getTransform("base_link", reference_frame.child_frame_id_, T) == true)
-	{
-		laser_scanner_mounting_height_ = T.at<double>(2,3);
-		laser_scanner_mounting_height_received_ = true;
-	}
-
 	tf::Vector3 trans = reference_frame.getOrigin();
-	reference_frame.setOrigin(tf::Vector3(trans.x(), trans.y(), trans.z()-laser_scanner_mounting_height_));
-}
-
-// computes the transform from target_frame to source_frame (i.e. transform arrow is pointing from target_frame to source_frame)
-bool ReferenceLocalization::getTransform(const std::string& target_frame, const std::string& source_frame, cv::Mat& T)
-{
-	try
-	{
-		tf::StampedTransform Ts;
-		transform_listener_.waitForTransform(target_frame, source_frame, ros::Time(0), ros::Duration(1.0));
-		transform_listener_.lookupTransform(target_frame, source_frame, ros::Time(0), Ts);
-		const tf::Matrix3x3& rot = Ts.getBasis();
-		const tf::Vector3& trans = Ts.getOrigin();
-		cv::Mat rotcv(3,3,CV_64FC1);
-		cv::Mat transcv(3,1,CV_64FC1);
-		for (int v=0; v<3; ++v)
-			for (int u=0; u<3; ++u)
-				rotcv.at<double>(v,u) = rot[v].m_floats[u];
-		for (int v=0; v<3; ++v)
-			transcv.at<double>(v) = trans.m_floats[v];
-		T = makeTransform(rotcv, transcv);
-		//std::cout << "Transform from " << source_frame << " to " << target_frame << ":\n" << T << std::endl;
-	}
-	catch (tf::TransformException& ex)
-	{
-		ROS_WARN("%s",ex.what());
-		return false;
-	}
-
-	return true;
-}
-
-cv::Mat ReferenceLocalization::makeTransform(const cv::Mat& R, const cv::Mat& t)
-{
-	cv::Mat T = (cv::Mat_<double>(4,4) <<
-			R.at<double>(0,0), R.at<double>(0,1), R.at<double>(0,2), t.at<double>(0),
-			R.at<double>(1,0), R.at<double>(1,1), R.at<double>(1,2), t.at<double>(1),
-			R.at<double>(2,0), R.at<double>(2,1), R.at<double>(2,2), t.at<double>(2),
-			0., 0., 0., 1);
-	return T;
+	reference_frame.setOrigin(tf::Vector3(trans.x(), trans.y(), trans.z()-base_height_));
 }

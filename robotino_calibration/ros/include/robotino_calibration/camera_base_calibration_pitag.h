@@ -68,7 +68,7 @@ public:
 	// load/save calibration data from/to file
 	bool saveCalibration();
 	bool loadCalibration();
-	void getCalibration(cv::Mat& K, cv::Mat& distortion, cv::Mat& T_base_to_torso_lower, cv::Mat& T_torso_upper_to_camera);
+	void getCalibration(cv::Mat& T_base_to_torso_lower, cv::Mat& T_torso_upper_to_camera);
 
 
 protected:
@@ -76,12 +76,13 @@ protected:
 	// acquires images automatically from all set up robot configurations and detects the checkerboard points
 	// @param load_images loads calibration images and transformations from hard disk if set to true (images and transformations are stored automatically during recording from a real camera)
 	// retrieves the image size, checkerboard points per image as well as all relevant transformations
-	bool acquireCalibrationData(const std::vector<RobotConfiguration>& robot_configurations, const bool load_data,
+	bool acquireCalibrationData(const std::vector<calibration_utilities::RobotConfiguration>& robot_configurations, const bool load_data,
 			std::vector<cv::Mat>& T_base_to_marker_vector, std::vector<cv::Mat>& T_torso_lower_to_torso_upper_vector,
 			std::vector<cv::Mat>& T_camera_to_marker_vector);
 
 	ros::ServiceClient pitag_client_;
 	std::string marker_frame_base_name_;
+	std::string get_fiducials_topic_;
 };
 
 #endif // __CAMERA_BASE_CALIBRATION_PITAG_H__

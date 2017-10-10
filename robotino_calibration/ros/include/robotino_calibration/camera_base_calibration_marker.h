@@ -56,8 +56,7 @@
 
 #include <tf/transform_listener.h>
 #include <sensor_msgs/Image.h>
-#include <sensor_msgs/JointState.h>
-#include <dynamixel_msgs/JointState.h>
+#include <std_msgs/Float64MultiArray.h>
 #include <geometry_msgs/Twist.h>
 
 // image transport
@@ -69,22 +68,20 @@
 #include <pcl/point_types.h>
 
 // opencv
-//#include <opencv/cv.h>
-//#include <opencv/highgui.h>
 #include <opencv2/opencv.hpp>
-//#include <opencv2/highgui/highgui.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 
 // Boost
-#include <boost/thread/mutex.hpp>
+//#include <boost/thread/mutex.hpp>
 
 #include <robotino_calibration/calibration_utilities.h>
 
 #include <robotino_calibration/timer.h>
+#include <robotino_calibration/robot_calibration.h>
 
 
-class CameraBaseCalibrationMarker
+class CameraBaseCalibrationMarker : public RobotCalibration
 {
 public:
 
@@ -94,12 +91,6 @@ public:
 	// starts the calibration between camera and base including data acquisition
 	virtual bool calibrateCameraToBase(const bool load_images) = 0;
 
-	// load/save calibration data from/to file
-	virtual bool saveCalibration() = 0;
-	virtual bool loadCalibration() = 0;
-	virtual void getCalibration(cv::Mat& K, cv::Mat& distortion, cv::Mat& T_base_to_torso_lower, cv::Mat& T_torso_upper_to_camera) = 0;
-	void setCalibrationStatus(bool calibrated);
-
 
 protected:
 
@@ -107,69 +98,31 @@ protected:
 	int counter;
 	Timer elapsed_time_since_start_;
 
-	void panTiltJointStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
-	void panJointStateCallback(const dynamixel_msgs::JointState::ConstPtr& msg);
-	void tiltJointStateCallback(const dynamixel_msgs::JointState::ConstPtr& msg);
+	int optimization_iterations_;	// number of iterations for optimization
 
 	// moves the robot to a desired location and adjusts the torso joints
-	bool moveRobot(const RobotConfiguration& robot_configuration);
+	bool moveRobot(const calibration_utilities::RobotConfiguration& robot_configuration);
 
 	void extrinsicCalibrationBaseToTorsoLower(std::vector< std::vector<cv::Point3f> >& pattern_points_3d,
 			std::vector<cv::Mat>& T_base_to_checkerboard_vector, std::vector<cv::Mat>& T_torso_lower_to_torso_upper_vector,
 			std::vector<cv::Mat>& T_camera_to_checkerboard_vector);
 
 	void extrinsicCalibrationTorsoUpperToCamera(std::vector< std::vector<cv::Point3f> >& pattern_points_3d,
-			std::vector<cv::Mat>& T_base_to_checkerboard_vector, std::vector<cv::Mat>& T_torso_lower_to_torso_upper_vector,
-			std::vector<cv::Mat>& T_camera_to_checkerboard_vector);
-
-	// computes the rigid transform between two sets of corresponding 3d points measured in different coordinate systems
-	// the resulting 4x4 transformation matrix converts point coordinates from the target system into the source coordinate system
-	cv::Mat computeExtrinsicTransform(const std::vector<cv::Point3d>& points_3d_source, const std::vector<cv::Point3d>& points_3d_target);
-
-	// computes the transform from target_frame to source_frame (i.e. transform arrow is pointing from target_frame to source_frame)
-	bool getTransform(const std::string& target_frame, const std::string& source_frame, cv::Mat& T);
+			std::vector<cv::Mat>& T_base_to_marker_vector, std::vector<cv::Mat>& T_torso_lower_to_torso_upper_vector,
+			std::vector<cv::Mat>& T_camera_to_marker_vector);
 
 	// displays the calibration result in the urdf file's format and also stores the screen output to a file
 	void displayAndSaveCalibrationResult(const cv::Mat& T_base_to_torso_lower_, const cv::Mat& T_torso_upper_to_camera_);
 
-
-	ros::NodeHandle node_handle_;
-	ros::Publisher base_controller_;
-	ros::Publisher tilt_controller_;
-	ros::Publisher pan_controller_;
-	ros::Subscriber pan_tilt_state_;
-	ros::Subscriber pan_state_;
-	ros::Subscriber tilt_state_;
-
-	//sensor_msgs::JointState* pan_tilt_joint_state_current_;
-	double* pan_joint_state_current_;
-	double* tilt_joint_state_current_;
-	boost::mutex pan_tilt_joint_state_data_mutex_;	// secures read operations on pan tilt joint state data
-
-	tf::TransformListener transform_listener_;
 	std::string torso_lower_frame_;
 	std::string torso_upper_frame_;
 	std::string camera_frame_;
 	std::string camera_optical_frame_;
-	std::string base_frame_;
-	std::string checkerboard_frame_;
 
 	cv::Mat T_base_to_torso_lower_;		// transformation to estimate from base to torso_lower
 	cv::Mat T_torso_upper_to_camera_;		// transformation to estimate from torso_upper to camera
 
-	bool calibrated_;	// only true if cameras were calibrated or a calibration was loaded before
-
-	// parameters
-	std::string camera_calibration_path_;	// path to data
-	std::string tilt_controller_command_;
-	std::string pan_controller_command_;
-	std::string tilt_joint_state_topic_;
-	std::string pan_joint_state_topic_;
-	std::string base_controller_topic_name_;
-
-	int optimization_iterations_;	// number of iterations for optimization
-
-	std::vector<RobotConfiguration> robot_configurations_;	// list of robot configurations for observing the checkerboard
+	std::vector<calibration_utilities::RobotConfiguration> robot_configurations_;  // wished robot configurations used for calibration
 };
 
 

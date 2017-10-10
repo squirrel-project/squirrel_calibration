@@ -62,9 +62,24 @@
 BoxLocalization::BoxLocalization(ros::NodeHandle& nh)
 		: ReferenceLocalization(nh)
 {
-	// load subclass parameters
-	node_handle_.param("box_search_width", box_search_width_, 0.5);
-	std::cout << "box_search_width: " << box_search_width_ << std::endl;
+	// read out user-defined box search polygon
+	std::vector<double> temp;
+	node_handle_.getParam("box_search_polygon", temp);
+	const int num_points = temp.size()/2;
+	if (temp.size()%2 != 0 || temp.size() < 3*2)
+	{
+		ROS_ERROR("The box_search_polygon vector should contain at least 3 points with 2 values (x,y) each.");
+		return;
+	}
+	std::cout << "Box Search Polygon Points:\n";
+	for (int i=0; i<num_points; ++i)
+	{
+		box_search_polygon_.push_back(cv::Point2f(temp[2*i], temp[2*i+1]));
+		std::cout << temp[2*i] << "\t" << temp[2*i+1] << std::endl;
+	}
+
+	ROS_INFO("BoxLocalization: Initialized.");
+	initialized_ = true;
 }
 
 BoxLocalization::~BoxLocalization()
@@ -74,41 +89,75 @@ BoxLocalization::~BoxLocalization()
 //#define DEBUG_OUTPUT
 void BoxLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& laser_scan_msg)
 {
-	// convert scan to x-y coordinates
-	std::vector<cv::Point2d> scan;
-	for (unsigned int i = 0; i < laser_scan_msg->ranges.size(); ++i)
-	{
-		double angle = laser_scan_msg->angle_min + i * laser_scan_msg->angle_increment; //[rad]
-		double dist = laser_scan_msg->ranges[i];
-		cv::Point2d point(dist*cos(angle), dist*sin(angle));
-		if (point.y > -wall_length_right_ && point.y < wall_length_left_) // dump points that are too far on left/right in terms of the scanner base
-			scan.push_back(point);
-	}
-
-	// match line to scan
-	cv::Vec4d line;
-	RelativeLocalizationUtilities::fitLine(scan, line, 0.1, 0.9999, 0.01, true);
-	if (line.val[0] != line.val[0] || line.val[1] != line.val[1] || line.val[2] != line.val[2] || line.val[3] != line.val[3]) // check for NaN
+	if (initialized_ == false)
 		return;
 
-	// display line
-	const double px = line.val[0];	// coordinates of a point on the wall
-	const double py = line.val[1];
-	const double n0x = line.val[2];	// normal direction on the wall (in floor plane x-y)
-	const double n0y = line.val[3];
 	if (marker_pub_.getNumSubscribers() > 0)
-		VisualizationUtilities::publishWallVisualization(laser_scan_msg->header, "wall", px, py, n0x, n0y, marker_pub_);
+	{
+		VisualizationUtilities::publishDetectionPolygon(laser_scan_msg->header, "front_wall_polygon", front_wall_polygon_, 0, marker_pub_);
+		VisualizationUtilities::publishDetectionPolygon(laser_scan_msg->header, "box_polygon", box_search_polygon_, 0, marker_pub_, 1.0, 0.5, 0.0);
+	}
 
+	// ---------- 1. data preparation ----------
+	// retrieve transform from laser scanner to base
+	cv::Mat T;
+	bool received_transform = RelativeLocalizationUtilities::getTransform(transform_listener_, base_frame_, laser_scan_msg->header.frame_id, T);
+	if (received_transform==false)
+ 	{
+		ROS_WARN("BoxLocalization::callback: Could not determine transform T between laser scanner and base.");
+		return;
+	}
+
+	// convert scan to x-y coordinates
+	std::vector<cv::Point2d> scan_front;
+	std::vector<cv::Point2d> scan_all;
+	for (unsigned int i = 0; i < laser_scan_msg->ranges.size(); ++i)
+	{
+		double angle = laser_scan_msg->angle_min + i * laser_scan_msg->angle_increment; // [rad]
+		double dist = laser_scan_msg->ranges[i]; // [m]
+
+		// transform laser scanner points to base frame
+		cv::Mat point_laser(cv::Vec4d(dist*cos(angle), dist*sin(angle), 0, 1.0));
+		cv::Mat point_base_mat = T*point_laser;
+		cv::Point2f point_2d_base(point_base_mat.at<double>(0), point_base_mat.at<double>(1));
+
+		// Check if point is inside polygon and push to scan if that's the case
+		if (cv::pointPolygonTest(front_wall_polygon_, point_2d_base, false) >= 0.f) // front wall points
+			scan_front.push_back(point_2d_base);
+
+		scan_all.push_back(point_2d_base);
+	}
+
+	// ---------- 2. front wall estimation ----------
+	// search for front wall until a suitable estimate is found, i.e. when scalar product of line normal and robot's x-axis do not differ by more than 45deg angle
+	const double inlier_distance = 0.01;
+	cv::Vec4d line_front;
+	bool found_front_line = estimateFrontWall(scan_front, line_front, 0.1, 0.99999, inlier_distance, 10);
+	if (found_front_line == false)
+	{
+		ROS_WARN("BoxLocalization::callback: front wall could not be estimated.");
+		return;
+	}
+	// display line
+	const double px = line_front.val[0];	// coordinates of a point on the wall
+	const double py = line_front.val[1];
+	const double n0x = line_front.val[2];	// normal direction on the wall (in floor plane x-y)
+	const double n0y = line_front.val[3];
+
+	if (marker_pub_.getNumSubscribers() > 0)
+		VisualizationUtilities::publishWallVisualization(laser_scan_msg->header, "wall_front", px, py, n0x, n0y, marker_pub_);
+
+	// ---------- 3. box localization ----------
 	// find blocks in front of the wall
 	std::vector< std::vector<cv::Point2d> > segments;
 	std::vector<cv::Point2d> segment;
 	bool in_reflector_segment = false;
-	for (unsigned int i = 0; i < scan.size(); ++i)
+	for (unsigned int i = 0; i < scan_all.size(); ++i)
 	{
 		//double distance_to_robot = scan[i].x*scan[i].x + scan[i].y*scan[i].y;
-		if (scan[i].y < box_search_width_ && scan[i].y > -box_search_width_)	// only search for block in front of the robot
+		if (cv::pointPolygonTest(box_search_polygon_, scan_all[i], false) >= 0 )	// only search for block inside search polygon
 		{
-			double d = fabs(n0x*(scan[i].x-px) + n0y*(scan[i].y-py));		// distance to wall
+			double d = fabs(n0x*(scan_all[i].x-px) + n0y*(scan_all[i].y-py));		// distance to wall
 			if (d<0.1 && in_reflector_segment==true)
 			{
 				// finish segment
@@ -118,7 +167,7 @@ void BoxLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& laser_sca
 			}
 			if (d >= 0.1)
 			{
-				segment.push_back(scan[i]);
+				segment.push_back(scan_all[i]);
 				in_reflector_segment = true;
 			}
 		}
@@ -149,58 +198,10 @@ void BoxLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& laser_sca
 	std::cout << "Corner point: " << corner_point << std::endl;
 #endif
 
-	// determine coordinate system generated by block in front of a wall (laser scanner coordinate system: x=forward, y=left, z=up)
+	// ---------- 4. publish tf ----------
+	// determine coordinate system generated by block in front of a wall
 	// block coordinate system is attached at the left corner of the block directly on the wall surface
-	bool publish_tf = true;
-	tf::StampedTransform transform_table_reference;
-	// offset to laser scanner coordinate system
-	// intersection of line from left block point in normal direction with wall line
-
-	// calculate projection (j*n0') of corner to wall: n0' = n0 rotated by 90°, to get the normal vector in direction of the wall
-	// j = projection length
-	// retrieve translation p' from scanner base to corner base
-	// n0' = [n0y; -n0x]
-	// p' = p + j*n0'
-	double j = ((corner_point.x-px)*n0y + (py-corner_point.y)*n0x) / (n0x*n0x + n0y*n0y); // j = (corner - p) dot n0'
-	double x = px + j*n0y;
-	double y = py - j*n0x;
-	tf::Vector3 translation(x, y, 0.);
-	// direction of x-axis in laser scanner coordinate system
-	cv::Point2d normal(n0x, n0y);
-	if (normal.x*translation.getX() + normal.y*translation.getY() < 0)
-		normal *= -1.;
-	double angle = atan2(normal.y, normal.x);
-	tf::Quaternion orientation(tf::Vector3(0,0,1), angle); // rotation around z by value of angle
-
-	// update transform
-	if (avg_translation_.isZero())
-	{
-		// use value directly on first message
-		avg_translation_ = translation;
-		avg_orientation_ = orientation;
-	}
-	else
-	{
-		// update value
-		avg_translation_ = (1.0 - update_rate_) * avg_translation_ + update_rate_ * translation;
-		avg_orientation_.setW((1.0 - update_rate_) * avg_orientation_.getW() + update_rate_ * orientation.getW());
-		avg_orientation_.setX((1.0 - update_rate_) * avg_orientation_.getX() + update_rate_ * orientation.getX());
-		avg_orientation_.setY((1.0 - update_rate_) * avg_orientation_.getY() + update_rate_ * orientation.getY());
-		avg_orientation_.setZ((1.0 - update_rate_) * avg_orientation_.getZ() + update_rate_ * orientation.getZ());
-	}
-
-	// transform
-	transform_table_reference.setOrigin(avg_translation_);
-	transform_table_reference.setRotation(avg_orientation_);
-	tf::StampedTransform tf_msg(transform_table_reference, laser_scan_msg->header.stamp, laser_scan_msg->header.frame_id, child_frame_name_);
-	if (reference_coordinate_system_at_ground_ == true)
-		ShiftReferenceFrameToGround(tf_msg);
-
-	// publish coordinate system on tf
-	if (publish_tf == true)
-	{
-		transform_broadcaster_.sendTransform(tf_msg);
-	}
+	computeAndPublishChildFrame(line_front, corner_point, laser_scan_msg->header.stamp);
 }
 
 // reflector-based
@@ -307,7 +308,7 @@ void BoxLocalization::callback(const sensor_msgs::LaserScan::ConstPtr& laser_sca
 
 void BoxLocalization::dynamicReconfigureCallback(robotino_calibration::RelativeLocalizationConfig &config, uint32_t level)
 {
-	ReferenceLocalization::dynamicReconfigureCallback(config, level); //Call to base class
-	box_search_width_ = config.box_search_width;
-	std::cout << "box_search_width=" << box_search_width_ << "\n";
+	ReferenceLocalization::dynamicReconfigureCallback(config, level); // call to base class
+	//box_search_width_ = config.box_search_width;
+	//std::cout << "box_search_width=" << box_search_width_ << "\n";
 }
