@@ -56,9 +56,8 @@
 
 #include <tf/transform_listener.h>
 #include <sensor_msgs/Image.h>
-//#include <sensor_msgs/JointState.h>  //deprecated
-//#include <dynamixel_msgs/JointState.h>
-//#include <geometry_msgs/Twist.h>
+#include <std_msgs/Float64MultiArray.h>
+#include <geometry_msgs/Twist.h>
 
 // image transport
 #include <image_transport/image_transport.h>
@@ -69,8 +68,6 @@
 #include <pcl/point_types.h>
 
 // opencv
-//#include <opencv/cv.h>
-//#include <opencv/highgui.h>
 #include <opencv2/opencv.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
