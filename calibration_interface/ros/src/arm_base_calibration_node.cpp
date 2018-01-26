@@ -13,9 +13,9 @@
  *
  * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
- * Author: Richard Bormann, email:richard.bormann@ipa.fhg.de
+ * Author: Marc Riedlinger, email:marc.riedlinger@ipa.fraunhofer.de
  *
- * Date of creation: December 2015
+ * Date of creation: October 2016
  *
  * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
@@ -49,40 +49,34 @@
  ****************************************************************/
 
 #include <ros/ros.h>
-#include <robotino_calibration/camera_base_calibration_checkerboard.h>
-#include <robotino_calibration/camera_base_calibration_pitag.h>
+#include <robotino_calibration/arm_base_calibration.h>
+#include <calibration_interface/custom_interface.h>
 
 //#######################
 //#### main programm ####
 int main(int argc, char** argv)
 {
 	// Initialize ROS, specify name of node
-	ros::init(argc, argv, "camera_base_calibration");
+	ros::init(argc, argv, "arm_base_calibration");
 
 	// Create a handle for this node, initialize node
 	ros::NodeHandle nh("~");
 
 	// load parameters
-	std::string marker_type;
 	bool load_images = false;
-	std::cout << "\n========== Relative Localization Parameters ==========\n";
-	nh.param<std::string>("marker_type", marker_type, "");
-	std::cout << "marker_type: " << marker_type << std::endl;
+	std::cout << "\n========== Arm Base Calibration Node Parameters ==========\n";
 	nh.param("load_images", load_images, false);
 	std::cout << "load_images: " << load_images << std::endl;
+	int calibration_ID = 0;
+	nh.param("calibration_ID", calibration_ID, 0);
+	std::cout << "calibration_ID: " << calibration_ID << std::endl;
+
+	bool arm_calibration = true;
 
 	try
 	{
-		if (marker_type.compare("checkerboard") == 0)
-		{
-			CameraBaseCalibrationCheckerboard cb(nh);
-			cb.calibrateCameraToBase(load_images);
-		}
-		else if (marker_type.compare("pitag") == 0)
-		{
-			CameraBaseCalibrationPiTag pt(nh);
-			pt.calibrateCameraToBase(load_images);
-		}
+		ArmBaseCalibration armCal(nh, CustomInterface::createInterfaceByID(calibration_ID, nh, arm_calibration));
+		armCal.calibrateArmToBase(load_images);
 	}
 	catch ( std::exception &e )
 	{

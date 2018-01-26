@@ -48,14 +48,14 @@
  *
  ****************************************************************/
 
-#include <robotino_calibration/cob_interface.h>
+#include <calibration_interface/cob_interface.h>
 
-CobInterface::CobInterface(ros::NodeHandle nh, bool bArmCalibration) :
-				CalibrationInterface(nh)
+CobInterface::CobInterface(ros::NodeHandle nh, bool do_arm_calibration) :
+				CustomInterface(nh)
 {
 	std::cout << "\n========== CobInterface Parameters ==========\n";
 
-	if ( bArmCalibration )
+	if ( do_arm_calibration )
 	{
 		node_handle_.param<std::string>("arm_left_command", arm_left_command_, "");
 		std::cout << "arm_left_command: " << arm_left_command_ << std::endl;

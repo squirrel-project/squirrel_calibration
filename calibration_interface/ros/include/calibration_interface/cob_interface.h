@@ -15,7 +15,7 @@
  *
  * Author: Marc Riedlinger, email:marc.riedlinger@ipa.fraunhofer.de
  *
- * Date of creation: October 2016
+ * Date of creation: September 2017
  *
  * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
@@ -48,52 +48,44 @@
  *
  ****************************************************************/
 
-#ifndef ROBOT_CALIBRATION_H_
-#define ROBOT_CALIBRATION_H_
+#ifndef COB_INTERFACE_H_
+#define COB_INTERFACE_H_
 
+#include <calibration_interface/custom_interface.h>
+#include <sensor_msgs/JointState.h>
+#include <boost/thread/mutex.hpp>
 
-#include <ros/ros.h>
-#include <tf/transform_listener.h>
-#include <robotino_calibration/calibration_utilities.h>
-#include <robotino_calibration/calibration_interface.h>
-#include <opencv2/opencv.hpp>
-#include <cv_bridge/cv_bridge.h>
-
-
-struct CalibrationInfo
+class CobInterface : public CustomInterface
 {
-	std::string parent_;
-	std::string child_;
-	cv::Mat current_trafo_;
-	int trafo_until_next_gap_idx_; // index to between_gaps trafo
-};
-
-class RobotCalibration
-{
-public:
-
-	RobotCalibration(ros::NodeHandle nh, CalibrationInterface* interface);
-	virtual ~RobotCalibration();
-	//virtual bool saveCalibration() = 0;
-	//virtual bool loadCalibration() = 0;
-
-
 protected:
+	std::string arm_left_command_;
+	std::string arm_left_state_topic_;
+	std::string arm_right_command_;
+	std::string arm_right_state_topic_;
+	std::string base_velocity_command_;
+	ros::Subscriber arm_left_state_;
+	ros::Subscriber arm_right_state_;
+	ros::Publisher arm_left_controller_;
+	ros::Publisher arm_right_controller_;
+	ros::Publisher base_velocity_controller_;
 
-	void createStorageFolder();
+public:
+	CobInterface(ros::NodeHandle nh, bool do_arm_calibration);
+	~CobInterface();
 
-	//int calibration_ID_;		// ID for identifying which calibration interface to use.
-	int optimization_iterations_;	// number of iterations for optimization
-	bool calibrated_;
-	tf::TransformListener transform_listener_;
-	ros::NodeHandle node_handle_;
-	std::string base_frame_;  // name of base frame
-	std::string calibration_storage_path_;  // path to data
-	std::string child_frame_name_;  // name of reference frame
-	CalibrationInterface *calibration_interface_;
-	std::vector<CalibrationInfo> transforms_to_calibrate_;
-	std::vector<int> calibration_order_;
+	// camera calibration interface
+	void assignNewRobotVelocity(geometry_msgs::Twist newVelocity);
+	void assignNewCameraAngles(std_msgs::Float64MultiArray newAngles);
+	std::vector<double>* getCurrentCameraState();
+
+	// callbacks
+	void cameraStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
+	void armLeftStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
+	void armRightStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
+
+	// arm calibration interface
+	void assignNewArmJoints(std_msgs::Float64MultiArray newJointConfig);
+	std::vector<double>* getCurrentArmState();
 };
 
-
-#endif /* ROBOT_CALIBRATION_H_ */
+#endif /* COB_INTERFACE_H_ */

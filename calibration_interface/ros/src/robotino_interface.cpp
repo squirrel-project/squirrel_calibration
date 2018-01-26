@@ -48,11 +48,11 @@
  *
  ****************************************************************/
 
-#include <robotino_calibration/robotino_interface.h>
+#include <calibration_interface/robotino_interface.h>
 
 
 RobotinoInterface::RobotinoInterface(ros::NodeHandle nh, bool do_arm_calibration) :
-				CalibrationInterface(nh), camera_state_current_(2, 0.), arm_state_current_(0)
+				CustomInterface(nh), camera_state_current_(2, 0.), arm_state_current_(0)
 {
 	std::cout << "\n========== RobotinoInterface Parameters ==========\n";
 

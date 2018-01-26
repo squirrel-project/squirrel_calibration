@@ -15,7 +15,7 @@
  *
  * Author: Marc Riedlinger, email:marc.riedlinger@ipa.fraunhofer.de
  *
- * Date of creation: October 2016
+ * Date of creation: January 2018
  *
  * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
@@ -48,34 +48,44 @@
  *
  ****************************************************************/
 
-#include <ros/ros.h>
-#include <robotino_calibration/arm_base_calibration.h>
+/* This class represents the interface between your robot and the calibration code.
+ * Adjust the interface functions so that the calibration code will work correctly with your robot environment.
+*/
 
-//#######################
-//#### main programm ####
-int main(int argc, char** argv)
+#include <calibration_interface/custom_interface.h>
+#include <calibration_interface/robotino_interface.h>
+#include <calibration_interface/raw_interface.h>
+#include <calibration_interface/cob_interface.h>
+
+
+CustomInterface::CustomInterface()
 {
-	// Initialize ROS, specify name of node
-	ros::init(argc, argv, "arm_base_calibration");
+}
 
-	// Create a handle for this node, initialize node
-	ros::NodeHandle nh("~");
+CustomInterface::CustomInterface(ros::NodeHandle nh) :
+				CalibrationInterface(nh)
+{
+}
 
-	// load parameters
-	bool load_images = false;
-	std::cout << "\n========== Arm Base Calibration Node Parameters ==========\n";
-	nh.param("load_images", load_images, false);
-	std::cout << "load_images: " << load_images << std::endl;
+CustomInterface::~CustomInterface()
+{
+}
 
-	try
+// You can add further interfaces for other robots in here.
+CalibrationInterface* CustomInterface::createInterfaceByID(int ID, ros::NodeHandle nh, bool do_arm_calibration)
+{
+	switch(ID)
 	{
-		ArmBaseCalibration armCal(nh);
-		armCal.calibrateArmToBase(load_images);
+		case Robotino:
+				return (new RobotinoInterface(nh, do_arm_calibration));
+				break;
+		case RobAtWork:
+				return (new RAWInterface(nh, do_arm_calibration));
+				break;
+		case CareOBot:
+				return (new CobInterface(nh, do_arm_calibration));
+				break;
+		default:
+				return 0;
 	}
-	catch ( std::exception &e )
-	{
-		return -1;
-	}
-
-	return 0;
 }

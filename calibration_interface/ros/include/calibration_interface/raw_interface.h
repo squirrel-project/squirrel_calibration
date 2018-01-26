@@ -48,40 +48,41 @@
  *
  ****************************************************************/
 
-#ifndef ROBOTINO_INTERFACE_H_
-#define ROBOTINO_INTERFACE_H_
+#ifndef RAW_CALIBRATION_H_
+#define RAW_CALIBRATION_H_
 
-#include <robotino_calibration/calibration_interface.h>
+#include <calibration_interface/custom_interface.h>
 #include <sensor_msgs/JointState.h>
 #include <boost/thread/mutex.hpp>
 
-class RobotinoInterface : public CalibrationInterface
+class RAWInterface : public CustomInterface
 {
 protected:
 	ros::Publisher arm_joint_controller_;
 	std::string arm_joint_controller_command_;
-	ros::Publisher pan_controller_;
-	std::string pan_controller_command_;
-	ros::Publisher tilt_controller_;
-	std::string tilt_controller_command_;
-	ros::Publisher base_controller_;
+	ros::Publisher camera_joint_controller_;
+	std::string camera_joint_controller_command_;
 	std::string base_controller_topic_name_;
+	ros::Publisher base_controller_;
 
-	ros::Subscriber camera_joint_state_sub_;
-	std::string camera_joint_state_topic_;			// topic name of the topic which contains current camera joint states
+	//double pan_joint_state_current_;
+	//double tilt_joint_state_current_;
 	std::vector<double> camera_state_current_;
-	boost::mutex camera_joint_state_data_mutex_;	// secures read operations on camera joint state data
-	std::string pan_joint_name_;			// name of the pan joint in array of tilt_joint_states_topic_ topic
-	std::string tilt_joint_name_;			// name of the tilt joint in array of tilt_joint_states_topic_ topic
+	boost::mutex pan_tilt_joint_state_data_mutex_;	// secures read operations on pan tilt joint state data
+	std::string joint_state_topic_;
 
-	ros::Subscriber arm_state_;
+	std::string camera_joint_state_topic_;
+	ros::Subscriber camera_state_;
+
 	std::string arm_state_topic_;
+	ros::Subscriber arm_state_;
 	sensor_msgs::JointState* arm_state_current_;
 	boost::mutex arm_state_data_mutex_;	// secures read operations on pan tilt joint state data
 
+
 public:
-	RobotinoInterface(ros::NodeHandle nh, bool do_arm_calibration);
-	~RobotinoInterface();
+	RAWInterface(ros::NodeHandle nh, bool do_arm_calibration);
+	~RAWInterface();
 
 	// camera calibration interface
 	void assignNewRobotVelocity(geometry_msgs::Twist new_velocity);
@@ -89,7 +90,7 @@ public:
 	std::vector<double>* getCurrentCameraState();
 
 	// callbacks
-	void cameraJointStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
+	void cameraStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
 	void armStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
 
 	// arm calibration interface
@@ -98,4 +99,4 @@ public:
 };
 
 
-#endif /* ROBOTINO_INTERFACE_H_ */
+#endif /* RAW_CALIBRATION_H_ */

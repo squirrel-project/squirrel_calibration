@@ -48,7 +48,7 @@
  *
  ****************************************************************/
 
-#include <robotino_calibration/raw_interface.h>
+#include <calibration_interface/raw_interface.h>
 #include <trajectory_msgs/JointTrajectoryPoint.h>
 #include <trajectory_msgs/JointTrajectory.h>
 #include <control_msgs/FollowJointTrajectoryAction.h>
@@ -59,7 +59,7 @@
 
 
 RAWInterface::RAWInterface(ros::NodeHandle nh, bool do_arm_calibration) :
-				CalibrationInterface(nh), arm_state_current_(0)
+				CustomInterface(nh), arm_state_current_(0)
 {
 	std::cout << "\n========== RAWInterface Parameters ==========\n";
 

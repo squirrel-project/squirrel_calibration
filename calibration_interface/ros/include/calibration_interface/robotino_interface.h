@@ -15,7 +15,7 @@
  *
  * Author: Marc Riedlinger, email:marc.riedlinger@ipa.fraunhofer.de
  *
- * Date of creation: October 2016
+ * Date of creation: February 2017
  *
  * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
@@ -48,52 +48,54 @@
  *
  ****************************************************************/
 
-#ifndef ROBOT_CALIBRATION_H_
-#define ROBOT_CALIBRATION_H_
+#ifndef ROBOTINO_INTERFACE_H_
+#define ROBOTINO_INTERFACE_H_
 
+#include <calibration_interface/custom_interface.h>
+#include <sensor_msgs/JointState.h>
+#include <boost/thread/mutex.hpp>
 
-#include <ros/ros.h>
-#include <tf/transform_listener.h>
-#include <robotino_calibration/calibration_utilities.h>
-#include <robotino_calibration/calibration_interface.h>
-#include <opencv2/opencv.hpp>
-#include <cv_bridge/cv_bridge.h>
-
-
-struct CalibrationInfo
+class RobotinoInterface : public CustomInterface
 {
-	std::string parent_;
-	std::string child_;
-	cv::Mat current_trafo_;
-	int trafo_until_next_gap_idx_; // index to between_gaps trafo
-};
-
-class RobotCalibration
-{
-public:
-
-	RobotCalibration(ros::NodeHandle nh, CalibrationInterface* interface);
-	virtual ~RobotCalibration();
-	//virtual bool saveCalibration() = 0;
-	//virtual bool loadCalibration() = 0;
-
-
 protected:
+	ros::Publisher arm_joint_controller_;
+	std::string arm_joint_controller_command_;
+	ros::Publisher pan_controller_;
+	std::string pan_controller_command_;
+	ros::Publisher tilt_controller_;
+	std::string tilt_controller_command_;
+	ros::Publisher base_controller_;
+	std::string base_controller_topic_name_;
 
-	void createStorageFolder();
+	ros::Subscriber camera_joint_state_sub_;
+	std::string camera_joint_state_topic_;			// topic name of the topic which contains current camera joint states
+	std::vector<double> camera_state_current_;
+	boost::mutex camera_joint_state_data_mutex_;	// secures read operations on camera joint state data
+	std::string pan_joint_name_;			// name of the pan joint in array of tilt_joint_states_topic_ topic
+	std::string tilt_joint_name_;			// name of the tilt joint in array of tilt_joint_states_topic_ topic
 
-	//int calibration_ID_;		// ID for identifying which calibration interface to use.
-	int optimization_iterations_;	// number of iterations for optimization
-	bool calibrated_;
-	tf::TransformListener transform_listener_;
-	ros::NodeHandle node_handle_;
-	std::string base_frame_;  // name of base frame
-	std::string calibration_storage_path_;  // path to data
-	std::string child_frame_name_;  // name of reference frame
-	CalibrationInterface *calibration_interface_;
-	std::vector<CalibrationInfo> transforms_to_calibrate_;
-	std::vector<int> calibration_order_;
+	ros::Subscriber arm_state_;
+	std::string arm_state_topic_;
+	sensor_msgs::JointState* arm_state_current_;
+	boost::mutex arm_state_data_mutex_;	// secures read operations on pan tilt joint state data
+
+public:
+	RobotinoInterface(ros::NodeHandle nh, bool do_arm_calibration);
+	~RobotinoInterface();
+
+	// camera calibration interface
+	void assignNewRobotVelocity(geometry_msgs::Twist new_velocity);
+	void assignNewCameraAngles(std_msgs::Float64MultiArray new_angles);
+	std::vector<double>* getCurrentCameraState();
+
+	// callbacks
+	void cameraJointStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
+	void armStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
+
+	// arm calibration interface
+	void assignNewArmJoints(std_msgs::Float64MultiArray new_joint_config);
+	std::vector<double>* getCurrentArmState();
 };
 
 
-#endif /* ROBOT_CALIBRATION_H_ */
+#endif /* ROBOTINO_INTERFACE_H_ */

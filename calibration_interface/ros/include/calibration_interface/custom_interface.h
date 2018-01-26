@@ -15,7 +15,7 @@
  *
  * Author: Marc Riedlinger, email:marc.riedlinger@ipa.fraunhofer.de
  *
- * Date of creation: February 2017
+ * Date of creation: January 2018
  *
  * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
@@ -48,55 +48,37 @@
  *
  ****************************************************************/
 
-#ifndef RAW_CALIBRATION_H_
-#define RAW_CALIBRATION_H_
+#ifndef CUSTOM_INTERFACE_H_
+#define CUSTOM_INTERFACE_H_
 
 #include <robotino_calibration/calibration_interface.h>
-#include <sensor_msgs/JointState.h>
-#include <boost/thread/mutex.hpp>
 
-class RAWInterface : public CalibrationInterface
+// Robot types
+#define Robotino	0
+#define RobAtWork	1
+#define CareOBot	2
+
+class CustomInterface : public CalibrationInterface
 {
 protected:
-	ros::Publisher arm_joint_controller_;
-	std::string arm_joint_controller_command_;
-	ros::Publisher camera_joint_controller_;
-	std::string camera_joint_controller_command_;
-	std::string base_controller_topic_name_;
-	ros::Publisher base_controller_;
-
-	//double pan_joint_state_current_;
-	//double tilt_joint_state_current_;
-	std::vector<double> camera_state_current_;
-	boost::mutex pan_tilt_joint_state_data_mutex_;	// secures read operations on pan tilt joint state data
-	std::string joint_state_topic_;
-
-	std::string camera_joint_state_topic_;
-	ros::Subscriber camera_state_;
-
-	std::string arm_state_topic_;
-	ros::Subscriber arm_state_;
-	sensor_msgs::JointState* arm_state_current_;
-	boost::mutex arm_state_data_mutex_;	// secures read operations on pan tilt joint state data
-
+	ros::NodeHandle node_handle_;
 
 public:
-	RAWInterface(ros::NodeHandle nh, bool do_arm_calibration);
-	~RAWInterface();
-
+	CustomInterface();
+	CustomInterface(ros::NodeHandle nh);
+	virtual ~CustomInterface();
+	static CalibrationInterface* createInterfaceByID(int ID, ros::NodeHandle nh, bool do_arm_calibration); //Create corresponding robot interface by a user-defined ID.
+/*
 	// camera calibration interface
-	void assignNewRobotVelocity(geometry_msgs::Twist new_velocity);
-	void assignNewCameraAngles(std_msgs::Float64MultiArray new_angles);
-	std::vector<double>* getCurrentCameraState();
-
-	// callbacks
-	void cameraStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
-	void armStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
+	virtual void assignNewRobotVelocity(geometry_msgs::Twist newVelocity) = 0;
+	virtual void assignNewCameraAngles(std_msgs::Float64MultiArray newAngles) = 0;
+	virtual std::vector<double>* getCurrentCameraState() = 0;
 
 	// arm calibration interface
-	void assignNewArmJoints(std_msgs::Float64MultiArray new_joint_config);
-	std::vector<double>* getCurrentArmState();
+	virtual void assignNewArmJoints(std_msgs::Float64MultiArray newJointConfig) = 0;
+	virtual std::vector<double>* getCurrentArmState() = 0;
+*/
 };
 
 
-#endif /* RAW_CALIBRATION_H_ */
+#endif /* CUSTOM_INTERFACE_H_ */

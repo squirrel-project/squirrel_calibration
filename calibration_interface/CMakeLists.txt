@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(robotino_calibration)
+project(calibration_interface)
 
 ## C++11
 include(CheckCXXCompilerFlag)
@@ -17,18 +17,19 @@ endif()
 ## End C++11
 
 set(catkin_RUN_PACKAGES			# all ROS packages from package.xml (libopencv-dev is system dependency --> sudo apt-get install)
-	cob_fiducials
-	cob_object_detection_msgs
+	#cob_fiducials
+	#cob_object_detection_msgs
 	control_msgs
-	cv_bridge
+	#cv_bridge
 	geometry_msgs
-	image_transport
+	#image_transport
 	roscpp
-	roslib
+	#roslib
 	sensor_msgs
 	std_msgs
-	tf
+	#tf
 	trajectory_msgs
+	actionlib
 )
 
 set(catkin_BUILD_PACKAGES 
@@ -43,10 +44,11 @@ find_package(catkin REQUIRED
 	${catkin_BUILD_PACKAGES}		# this makes ${catkin_LIBRARIES} include all libraries of ${catkin_BUILD_PACKAGES}
 )
 
+find_package(robotino_calibration REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
+
 ## System dependencies are found with CMake's conventions
-find_package(Boost REQUIRED COMPONENTS system filesystem)
-find_package(OpenCV REQUIRED)	# name identical to FindOpenCV.cmake in cmake_modules
-find_package(PCL REQUIRED)
+#find_package(Boost REQUIRED COMPONENTS system)
 
 ###################################
 ## catkin specific configuration ##
@@ -57,13 +59,11 @@ INCLUDE_DIRS
 	common/include
 	ros/include
 LIBRARIES
-	CalibrationTools
 CATKIN_DEPENDS
 	${catkin_RUN_PACKAGES}
 DEPENDS
+	CalibrationTools
 	Boost
-	OpenCV
-	PCL
 )
 
 ###########
@@ -77,33 +77,39 @@ include_directories(
 	ros/include
 	${catkin_INCLUDE_DIRS} 		# same name as find_package
 	${Boost_INCLUDE_DIRS}
-	${OpenCV_INCLUDE_DIRS}
-	${PCL_INCLUDE_DIRS}
+	${robotino_calibration_INCLUDE_DIRS}
 )
 
-# calibration library
-add_library(CalibrationTools
-					ros/src/robot_calibration.cpp
-					ros/src/calibration_interface.cpp
-					ros/src/camera_base_calibration_marker.cpp
-					ros/src/camera_base_calibration_checkerboard.cpp
-					ros/src/camera_base_calibration_pitag.cpp
-					ros/src/arm_base_calibration.cpp
-					common/src/transformation_utilities.cpp
-					common/src/calibration_utilities.cpp
+# calibration software
+add_executable(camera_base_calibration	ros/src/camera_base_calibration_node.cpp
+										ros/src/custom_interface.cpp
+										ros/src/robotino_interface.cpp
+										ros/src/raw_interface.cpp
+										ros/src/cob_interface.cpp
 )
 
-target_link_libraries(CalibrationTools
+target_link_libraries(camera_base_calibration
 	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
 	${Boost_LIBRARIES}
-	${OpenCV_LIBRARIES}
-	${PCL_LIBRARIES}
+	${robotino_calibration_LIBRARIES}
 )
 
-## Add cmake target dependencies of the library
-## as an example, code may need to be generated before libraries
-## either from message generation or dynamic reconfigure
-add_dependencies(CalibrationTools ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+add_dependencies(camera_base_calibration	${catkin_EXPORTED_TARGETS})
+
+add_executable(arm_base_calibration  ros/src/arm_base_calibration_node.cpp
+										ros/src/custom_interface.cpp
+										ros/src/robotino_interface.cpp
+										ros/src/raw_interface.cpp
+										ros/src/cob_interface.cpp
+)
+
+target_link_libraries(arm_base_calibration
+	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
+	${Boost_LIBRARIES}
+	${robotino_calibration_LIBRARIES}
+)
+
+add_dependencies(arm_base_calibration	${catkin_EXPORTED_TARGETS})
 
 
 #############
@@ -121,7 +127,13 @@ add_dependencies(CalibrationTools ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_E
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS CalibrationTools
+install(TARGETS camera_base_calibration
+	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(TARGETS arm_base_calibration
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}

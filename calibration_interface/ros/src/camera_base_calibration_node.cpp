@@ -13,9 +13,9 @@
  *
  * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
- * Author: Marc Riedlinger, email:marc.riedlinger@ipa.fraunhofer.de
+ * Author: Richard Bormann, email:richard.bormann@ipa.fhg.de
  *
- * Date of creation: September 2017
+ * Date of creation: December 2015
  *
  * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
@@ -48,44 +48,52 @@
  *
  ****************************************************************/
 
-#ifndef COB_INTERFACE_H_
-#define COB_INTERFACE_H_
+#include <ros/ros.h>
+#include <robotino_calibration/camera_base_calibration_checkerboard.h>
+#include <robotino_calibration/camera_base_calibration_pitag.h>
+#include <calibration_interface/custom_interface.h>
 
-#include <robotino_calibration/calibration_interface.h>
-#include <sensor_msgs/JointState.h>
-#include <boost/thread/mutex.hpp>
-
-class CobInterface : public CalibrationInterface
+//#######################
+//#### main programm ####
+int main(int argc, char** argv)
 {
-protected:
-	std::string arm_left_command_;
-	std::string arm_left_state_topic_;
-	std::string arm_right_command_;
-	std::string arm_right_state_topic_;
-	std::string base_velocity_command_;
-	ros::Subscriber arm_left_state_;
-	ros::Subscriber arm_right_state_;
-	ros::Publisher arm_left_controller_;
-	ros::Publisher arm_right_controller_;
-	ros::Publisher base_velocity_controller_;
+	// Initialize ROS, specify name of node
+	ros::init(argc, argv, "camera_base_calibration");
 
-public:
-	CobInterface(ros::NodeHandle nh, bool bArmCalibration);
-	~CobInterface();
+	// Create a handle for this node, initialize node
+	ros::NodeHandle nh("~");
 
-	// camera calibration interface
-	void assignNewRobotVelocity(geometry_msgs::Twist newVelocity);
-	void assignNewCameraAngles(std_msgs::Float64MultiArray newAngles);
-	std::vector<double>* getCurrentCameraState();
+	// load parameters
+	std::string marker_type;
+	bool load_images = false;
+	std::cout << "\n========== Relative Localization Parameters ==========\n";
+	nh.param<std::string>("marker_type", marker_type, "");
+	std::cout << "marker_type: " << marker_type << std::endl;
+	nh.param("load_images", load_images, false);
+	std::cout << "load_images: " << load_images << std::endl;
+	int calibration_ID = 0;
+	nh.param("calibration_ID", calibration_ID, 0);
+	std::cout << "calibration_ID: " << calibration_ID << std::endl;
 
-	// callbacks
-	void cameraStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
-	void armLeftStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
-	void armRightStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
+	bool arm_calibration = false;
 
-	// arm calibration interface
-	void assignNewArmJoints(std_msgs::Float64MultiArray newJointConfig);
-	std::vector<double>* getCurrentArmState();
-};
+	try
+	{
+		if (marker_type.compare("checkerboard") == 0)
+		{
+			CameraBaseCalibrationCheckerboard cb(nh, CustomInterface::createInterfaceByID(calibration_ID, nh, arm_calibration));
+			cb.calibrateCameraToBase(load_images);
+		}
+		else if (marker_type.compare("pitag") == 0)
+		{
+			CameraBaseCalibrationPiTag pt(nh, CustomInterface::createInterfaceByID(calibration_ID, nh, arm_calibration));
+			pt.calibrateCameraToBase(load_images);
+		}
+	}
+	catch ( std::exception &e )
+	{
+		return -1;
+	}
 
-#endif /* COB_INTERFACE_H_ */
+	return 0;
+}
