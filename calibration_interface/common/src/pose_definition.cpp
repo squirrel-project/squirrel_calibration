@@ -13,9 +13,9 @@
  *
  * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
- * Author: Richard Bormann, email:richard.bormann@ipa.fhg.de
+ * Author: Marc Riedlinger, email:marc.riedlinger@ipa.fraunhofer.de
  *
- * Date of creation: December 2015
+ * Date of creation: October 2016
  *
  * +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
  *
@@ -48,40 +48,68 @@
  *
  ****************************************************************/
 
-#ifndef CALIBRATION_UTILITIES_H
-#define CALIBRATION_UTILITIES_H
 
-//#include <opencv2/opencv.hpp>
-//#include <cv_bridge/cv_bridge.h>
-//#include <sensor_msgs/image_encodings.h>
-#include <vector>
-#include <string>
+#include <calibration_interface/pose_definition.h>
+#include <iostream>
+#include <sstream>
 
-#define NUM_BASE_PARAMS 3
 
-namespace calibration_utilities
+namespace pose_definition
 {
-    // struct for the configuration (x,y location + base rotation) of the robot
-    struct BaseConfiguration
-    {
-        double pose_x_;
-        double pose_y_;
-        double pose_phi_;
+	RobotConfiguration::RobotConfiguration(const std::vector<double> &config) :
+					pose_x_(0.), pose_y_(0.), pose_phi_(0.)
+	{
+		if ( config.size() != NUM_POSE_PARAMS )
+		{
+			std::cout << "pose_definition::RobotConfiguration: Error, passed vector does not have the correct size ("
+					<< config.size() << ", needed " << NUM_POSE_PARAMS << ") to build a robot configuration!";
+			return;
+		}
 
-        BaseConfiguration(const std::vector<double> config);
-        void assign(int idx, double value);
-        std::string get();
-    };
+		pose_x_ = config[0];
+		pose_y_ = config[1];
+		pose_phi_ = config[2];
+	}
 
-    //bool convertImageMessageToMat(const sensor_msgs::Image::ConstPtr& image_msg, cv_bridge::CvImageConstPtr& image_ptr, cv::Mat& image);
+	void RobotConfiguration::assign(const int idx, const double value)
+	{
+		switch( idx )
+		{
+			case 0:	pose_x_ = value;
+					break;
+			case 1:	pose_y_ = value;
+					break;
+			case 2:	pose_phi_ = value;
+		}
+	}
 
-    // generates the 3d coordinates of the checkerboard in local checkerboard frame coordinates
-    //void computeCheckerboard3dPoints(std::vector< std::vector<cv::Point3f> >& pattern_points, const cv::Size pattern_size, const double chessboard_cell_size, const int number_images);
-
-    /*double computeReprojectionError( const std::vector<std::vector<cv::Point3f> >& objectPoints,
-                                    const std::vector<std::vector<cv::Point2f> >& imagePoints,
-                                    const std::vector<cv::Mat>& rvecs, const std::vector<cv::Mat>& tvecs,
-                                    const cv::Mat& cameraMatrix , const cv::Mat& distCoeffs);*/
+	std::string RobotConfiguration::getString()
+	{
+		std::stringstream result;
+		result << pose_x_ << "\t" << pose_y_ << "\t" << pose_phi_;
+		return result.str();
+	}
 }
 
-#endif	// CALIBRATION_UTILITIES_H
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
