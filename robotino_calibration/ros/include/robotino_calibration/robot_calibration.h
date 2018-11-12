@@ -52,35 +52,74 @@
 #define ROBOT_CALIBRATION_H_
 
 
+// ROS
 #include <ros/ros.h>
 #include <tf/transform_listener.h>
-#include <robotino_calibration/calibration_utilities.h>
+
 #include <robotino_calibration/calibration_interface.h>
+#include <opencv2/opencv.hpp>
+#include <vector>
+
+#include <robotino_calibration/file_utilities.h>
 
 
 class RobotCalibration
 {
 public:
 
-	RobotCalibration(ros::NodeHandle nh, bool do_arm_calibration);
-	virtual ~RobotCalibration();
-	virtual bool saveCalibration() = 0;
-	virtual bool loadCalibration() = 0;
-	void setCalibrationStatus(bool calibrated);
+    RobotCalibration(ros::NodeHandle nh, CalibrationInterface* interface, const bool load_data_from_disk);
+    ~RobotCalibration();
+
+    bool startCalibration();  // starts the calibration process
 
 
 protected:
 
-	void createStorageFolder();
+    bool getOrigin(const std::string last_parent_branch_frame, const std::string last_child_branch_frame, std::string &origin);  // returns mutual frame of parent_marker and child_marker back-chains
 
-	int calibration_ID_;		// ID for identifying which calibration interface to use.
-	bool calibrated_;
-	tf::TransformListener transform_listener_;
-	ros::NodeHandle node_handle_;
-	std::string base_frame_;
-	std::string calibration_storage_path_;  // path to data
-	std::string child_frame_name_;  // name of reference frame
-	CalibrationInterface *calibration_interface_;
+    bool isPartOfCalibrationSetup(const std::string parent, const std::string child, const std::string origin, const CalibrationSetup &setup);  // returns whether passed uncertainty is part of passed calibration setup
+
+    void feedCalibrationSetup(CalibrationSetup &setup, const std::string parent, const std::string child,
+    							const std::string parent_marker, const std::string child_marker);  // extend existing calibration setup by new information given
+
+    bool getBackChain(const std::string frame_start, const std::string frame_end, std::vector<std::string> &backchain);
+
+    void getForwardChain(const std::vector<std::string> &backchain, std::vector<std::string> &forwardchain);  // takes backchain and reverses it
+
+    void sortUncertainties(const bool parent_branch, CalibrationSetup &setup, std::vector<CalibrationInfo> &sorted_uncertainties);  // sorts parent- and child-branch uncertainties of passed calibration setup
+
+    void truncateBranch(std::vector<std::string> &branch, std::vector<CalibrationInfo> &branch_uncertainties);
+
+    bool acquireTFData();
+
+    void populateTFSnapshot(const CalibrationSetup &setup, TFSnapshot &snapshot);
+
+    std::vector<TFInfo>* getBranchEndToMarkers(const int uncertainty_index, const bool parent_markers, TFSnapshot &snapshot);
+
+    bool buildTransformChain(const std::string start, const std::string end, const std::vector<TFInfo> &branch, cv::Mat &trafo);  // returns the transform between two arbitrary points in a branch
+
+    bool retrieveTransform(const std::string parent, const std::string child, const std::vector<TFInfo> &branch, cv::Mat &trafo);  // returns the transform between two points in a branch that are neighbours
+
+    bool extrinsicCalibration(const int current_setup_idx, const int current_uncertainty_idx);
+
+    // displays the calibration result on the screen and also stores it to a file in the urdf file's format
+    void displayAndSaveCalibrationResult();
+
+
+    int optimization_iterations_;	// number of iterations for optimization
+    bool calibrated_;  // calibration has successfully been finished
+    bool load_data_from_disk_;
+    double transform_discard_timeout_;  // timeout after which a TF transform won't be used for calibration anymore
+    tf::TransformListener transform_listener_;
+    ros::NodeHandle node_handle_;
+    std::string calibration_storage_path_;  // path to data
+    std::string calib_data_folder_;
+    std::string calib_data_file_name_;
+    CalibrationInterface *calibration_interface_;
+    std::vector<CalibrationSetup> calibration_setups_;
+    std::vector< std::vector<TFSnapshot> > tf_snapshots_;  // each robot configuration has calibration setup count snapshopts
+
+
 };
 
 

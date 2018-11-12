@@ -51,11 +51,10 @@
 #ifndef _TRANSFORMATION_UTILITIES_H_
 #define _TRANSFORMATION_UTILITIES_H_
 
-// OpenCV
-#include <opencv2/opencv.hpp>
-//#include <opencv2/highgui/highgui.hpp>
 
+#include <opencv2/opencv.hpp>
 #include <tf/transform_listener.h>
+
 
 namespace transform_utilities
 {
@@ -71,8 +70,10 @@ namespace transform_utilities
 
 	cv::Mat makeTransform(const cv::Mat& R, const cv::Mat& t);
 
+	//bool stringToTransform(const std::string& values, cv::Mat& trafo); // Takes a string like "1,1,1,1,1,1" and creates a 4x4 transformation matrix out of it.
+
 	// computes the transform from target_frame to source_frame (i.e. transform arrow is pointing from target_frame to source_frame)
-	bool getTransform(const tf::TransformListener& transform_listener, const std::string& target_frame, const std::string& source_frame, cv::Mat& T);
+	bool getTransform(const tf::TransformListener& transform_listener, const std::string& target_frame, const std::string& source_frame, cv::Mat& T, const double timeout = 0.0, const bool report_error = true);
 
 	// computes the rigid transform between two sets of corresponding 3d points measured in different coordinate systems
 	// the resulting 4x4 transformation matrix converts point coordinates from the target system into the source coordinate system

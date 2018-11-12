@@ -48,29 +48,18 @@
  *
  ****************************************************************/
 
-/* This class represents the interface between your robot and the calibration code.
- * Adjust the interface functions so that the calibration code will work correctly with your robot environment.
+/* This class represents the static interface between your robot and the calibration code.
+ * Adjust the interface functions in a subclass so that the calibration code will work correctly with your robot environment.
 */
 
 #include <robotino_calibration/calibration_interface.h>
-#include <robotino_calibration/robotino_interface.h>
-#include <robotino_calibration/raw_interface.h>
-#include <robotino_calibration/cob_interface.h>
 
-// Robot types
-#define Robotino	0
-#define RobAtWork	1
-#define CareOBot	2
-
-
-//ToDo: Generalize robot_configuration as well, so that it only uses PositionConfiguration and AngleConfiguration -> more flexible
 
 CalibrationInterface::CalibrationInterface()
 {
 }
 
-CalibrationInterface::CalibrationInterface(ros::NodeHandle nh) :
-				node_handle_(nh)
+CalibrationInterface::CalibrationInterface(ros::NodeHandle* nh) : node_handle_(*nh)
 {
 }
 
@@ -78,21 +67,3 @@ CalibrationInterface::~CalibrationInterface()
 {
 }
 
-// You can add further interfaces for other robots in here.
-CalibrationInterface* CalibrationInterface::createInterfaceByID(int ID, ros::NodeHandle nh, bool bArmCalibration)
-{
-	switch(ID)
-	{
-		case Robotino:
-				return (new RobotinoInterface(nh, bArmCalibration));
-				break;
-		case RobAtWork:
-				return (new RAWInterface(nh, bArmCalibration));
-				break;
-		case CareOBot:
-				return (new CobInterface(nh, bArmCalibration));
-				break;
-		default:
-				return 0;
-	}
-}
