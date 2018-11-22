@@ -51,11 +51,11 @@
 #ifndef ROBOTINO_INTERFACE_H_
 #define ROBOTINO_INTERFACE_H_
 
-#include <calibration_interface/custom_interface.h>
+#include <calibration_interface/ipa_interface.h>
 #include <sensor_msgs/JointState.h>
 #include <boost/thread/mutex.hpp>
 
-class RobotinoInterface : public CustomInterface
+class RobotinoInterface : public IPAInterface
 {
 protected:
 	ros::Publisher arm_joint_controller_;
@@ -70,31 +70,33 @@ protected:
 	ros::Subscriber camera_joint_state_sub_;
 	std::string camera_joint_state_topic_;			// topic name of the topic which contains current camera joint states
 	std::vector<double> camera_state_current_;
-	boost::mutex camera_joint_state_data_mutex_;	// secures read operations on camera joint state data
+	boost::mutex camera_state_data_mutex_;	// secures read operations on camera joint state data
 	std::string pan_joint_name_;			// name of the pan joint in array of tilt_joint_states_topic_ topic
 	std::string tilt_joint_name_;			// name of the tilt joint in array of tilt_joint_states_topic_ topic
 
 	ros::Subscriber arm_state_;
 	std::string arm_state_topic_;
 	sensor_msgs::JointState* arm_state_current_;
-	boost::mutex arm_state_data_mutex_;	// secures read operations on pan tilt joint state data
+	boost::mutex arm_state_data_mutex_;	// secures read operations on arm joint state data
 
 public:
-	RobotinoInterface(ros::NodeHandle nh, bool do_arm_calibration);
+	RobotinoInterface(ros::NodeHandle* nh, CalibrationType* calib_type, CalibrationMarker* calib_marker, bool do_arm_calibration, bool load_data);
 	~RobotinoInterface();
+
+	std::string getRobotName();
 
 	// camera calibration interface
 	void assignNewRobotVelocity(geometry_msgs::Twist new_velocity);
-	void assignNewCameraAngles(std_msgs::Float64MultiArray new_angles);
-	std::vector<double>* getCurrentCameraState();
+	void assignNewCameraAngles(const std::string &camera_name, std_msgs::Float64MultiArray new_angles);
+	std::vector<double>* getCurrentCameraState(const std::string &camera_name);
 
 	// callbacks
 	void cameraJointStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
 	void armStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
 
 	// arm calibration interface
-	void assignNewArmJoints(std_msgs::Float64MultiArray new_joint_config);
-	std::vector<double>* getCurrentArmState();
+	void assignNewArmJoints(const std::string &arm_name, std_msgs::Float64MultiArray new_joint_config);
+	std::vector<double>* getCurrentArmState(const std::string &arm_name);
 };
 
 

@@ -55,8 +55,8 @@
 #include <control_msgs/FollowJointTrajectoryGoal.h>
 #include <actionlib/client/simple_action_client.h>
 
-CobInterface::CobInterface(ros::NodeHandle nh, bool do_arm_calibration) :
-				CustomInterface(nh)
+CobInterface::CobInterface(ros::NodeHandle* nh, CalibrationType* calib_type, CalibrationMarker* calib_marker, bool do_arm_calibration, bool load_data) :
+				IPAInterface(nh, calib_type, calib_marker, do_arm_calibration, load_data)
 {
 	std::cout << "\n========== CobInterface Parameters ==========\n";
 
@@ -68,7 +68,7 @@ CobInterface::CobInterface(ros::NodeHandle nh, bool do_arm_calibration) :
 	std::cout << "camera_joint_state_topic: " << camera_joint_state_topic_ << std::endl;
 	camera_state_ = node_handle_.subscribe<sensor_msgs::JointState>(camera_joint_state_topic_, 0, &CobInterface::cameraStateCallback, this);
 
-	if ( do_arm_calibration )
+	if ( arm_calibration_ )
 	{
 		node_handle_.param<std::string>("arm_left_command", arm_left_command_, "");
 		std::cout << "arm_left_command: " << arm_left_command_ << std::endl;
@@ -97,7 +97,7 @@ CobInterface::CobInterface(ros::NodeHandle nh, bool do_arm_calibration) :
 	// /arm_right/joint_group_position_controller/command
 	// /base/velocity_smoother/command
 
-	ROS_INFO("CobInterface initialized.");
+	ROS_INFO("CobInterface::CobInterface - CobInterface initialized.");
 }
 
 CobInterface::~CobInterface()
@@ -126,24 +126,29 @@ void CobInterface::assignNewRobotVelocity(geometry_msgs::Twist newVelocity)
 
 }
 
-void CobInterface::assignNewCameraAngles(std_msgs::Float64MultiArray newAngles)
+void CobInterface::assignNewCameraAngles(const std::string &camera_name, std_msgs::Float64MultiArray newAngles)
 {
 
 }
 
-std::vector<double>* CobInterface::getCurrentCameraState()
+std::vector<double>* CobInterface::getCurrentCameraState(const std::string &camera_name)
 {
 	return 0;
 }
 
-void CobInterface::assignNewArmJoints(std_msgs::Float64MultiArray newJointConfig)
+void CobInterface::assignNewArmJoints(const std::string &arm_name, std_msgs::Float64MultiArray newJointConfig)
 {
 
 }
 
-std::vector<double>* CobInterface::getCurrentArmState()
+std::vector<double>* CobInterface::getCurrentArmState(const std::string &arm_name)
 {
 	return 0;
+}
+
+std::string CobInterface::getRobotName()
+{
+	return "COB-4";
 }
 
 

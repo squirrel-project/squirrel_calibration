@@ -17,21 +17,20 @@ endif()
 ## End C++11
 
 set(catkin_RUN_PACKAGES			# all ROS packages from package.xml (libopencv-dev is system dependency --> sudo apt-get install)
-	cob_fiducials
-	cob_object_detection_msgs
-	cv_bridge
-	geometry_msgs
-	image_transport
+	#cob_fiducials
+	#cob_object_detection_msgs
+	#cv_bridge
+	#geometry_msgs
+	#image_transport
 	roscpp
 	roslib
-	sensor_msgs
-	std_msgs
+	#sensor_msgs
+	#std_msgs
 	tf
 )
 
 set(catkin_BUILD_PACKAGES 
 	${catkin_RUN_PACKAGES}
-	cmake_modules
 )
 
 ## Find catkin macros and libraries
@@ -80,12 +79,9 @@ include_directories(
 add_library(CalibrationTools
 					ros/src/robot_calibration.cpp
 					ros/src/calibration_interface.cpp
-					ros/src/camera_base_calibration_marker.cpp
-					ros/src/camera_base_calibration_checkerboard.cpp
-					ros/src/camera_base_calibration_pitag.cpp
-					ros/src/arm_base_calibration.cpp
 					common/src/transformation_utilities.cpp
-					common/src/calibration_utilities.cpp
+					common/src/file_utilities.cpp
+					common/src/time_utilities.cpp
 )
 
 target_link_libraries(CalibrationTools
@@ -121,12 +117,19 @@ install(TARGETS CalibrationTools
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-## Mark cpp header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
+# Mark cpp header files for installation
+install(DIRECTORY common/include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN ".svn" EXCLUDE
+)
+
+# Mark cpp header files for installation
+install(DIRECTORY ros/include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN ".svn" EXCLUDE
+)
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 # install(FILES

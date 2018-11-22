@@ -1,18 +1,14 @@
-sudo: required 
-dist: trusty 
+sudo: required
+dist: trusty
+# Force travis to use its minimal image with default Python settings
 language: generic
-notifications:
-  email:
-    on_success: change
-    on_failure: always
+
 env:
   global:
     - ROS_DISTRO="indigo"
     - UPSTREAM_WORKSPACE=file
-    - ROSINSTALL_FILENAME=.travis.rosinstall
-  matrix:
-    - ROS_REPO=ros
+
 install:
-  - git clone https://github.com/ros-industrial/industrial_ci.git .ci_config
-script: .ci_config/travis.sh
-#  - source ./travis.sh  # Enable this when you have a package-local script 
+  - git clone --depth=1 https://github.com/ros-industrial/industrial_ci.git .ci_config
+script:
+  - .ci_config/travis.sh 

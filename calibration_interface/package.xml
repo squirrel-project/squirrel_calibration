@@ -11,8 +11,12 @@
 
 	<depend>actionlib</depend>
 	<depend>boost</depend>
+	<depend>cob_fiducials</depend>
+	<depend>cob_object_detection_msgs</depend>
 	<depend>control_msgs</depend>
+	<depend>cv_bridge</depend>
 	<depend>geometry_msgs</depend>
+	<depend>image_transport</depend>
 	<depend>robotino_calibration</depend>
 	<depend>roscpp</depend>
 	<depend>roslib</depend>
@@ -22,3 +26,4 @@
 	<depend>trajectory_msgs</depend>
 
 </package>
+

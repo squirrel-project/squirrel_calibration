@@ -67,8 +67,8 @@ ReferenceLocalization::ReferenceLocalization(ros::NodeHandle& nh)
 	std::cout << "\n========== Reference Localization Parameters ==========\n";
 	node_handle_.param("update_rate", update_rate_, 0.75);
 	std::cout << "update_rate: " << update_rate_ << std::endl;
-	node_handle_.param<std::string>("child_frame_name", child_frame_name_, "");
-	std::cout << "child_frame_name: " << child_frame_name_ << std::endl;
+	node_handle_.param<std::string>("reference_frame", reference_frame_, "");
+	std::cout << "reference_frame: " << reference_frame_ << std::endl;
 	node_handle_.param<std::string>("laser_scanner_topic_in", laser_scanner_topic_in_, "");
 	std::cout << "laser_scanner_topic_in: " << laser_scanner_topic_in_ << std::endl;
 	node_handle_.param<std::string>("base_frame", base_frame_, "");
@@ -82,7 +82,7 @@ ReferenceLocalization::ReferenceLocalization(ros::NodeHandle& nh)
 	const int num_points = temp.size()/2;
 	if (temp.size()%2 != 0 || temp.size() < 3*2)
 	{
-		ROS_ERROR("The front_wall_polygon vector should contain at least 3 points with 2 values (x,y) each.");
+		ROS_ERROR("ReferenceLocalization::ReferenceLocalization - The front_wall_polygon vector should contain at least 3 points with 2 values (x,y) each.");
 		return;
 	}
 	std::cout << "Front wall polygon points:\n";
@@ -102,7 +102,7 @@ ReferenceLocalization::ReferenceLocalization(ros::NodeHandle& nh)
 	dynamic_reconfigure_server_.setCallback(boost::bind(&ReferenceLocalization::dynamicReconfigureCallback, this, _1, _2));
 	avg_translation_.setZero();
 
-	ROS_INFO("ReferenceLocalization: Initialized.");
+	ROS_INFO("ReferenceLocalization::ReferenceLocalization - Initialized.");
 }
 
 ReferenceLocalization::~ReferenceLocalization()
@@ -112,9 +112,9 @@ ReferenceLocalization::~ReferenceLocalization()
 void ReferenceLocalization::dynamicReconfigureCallback(robotino_calibration::RelativeLocalizationConfig &config, uint32_t level)
 {
 	update_rate_ = config.update_rate;
-	child_frame_name_ = config.child_frame_name;
+	reference_frame_ = config.reference_frame;
 	std::cout << "Reconfigure request with\n update_rate=" << update_rate_
-			<< "\n child_frame_name=" << child_frame_name_ << "\n";
+			<< "\n reference_frame=" << reference_frame_ << "\n";
 }
 
 bool ReferenceLocalization::estimateFrontWall(std::vector<cv::Point2d>& scan_front, cv::Vec4d& line_front, const double inlier_ratio, const double success_probability,
@@ -126,7 +126,7 @@ bool ReferenceLocalization::estimateFrontWall(std::vector<cv::Point2d>& scan_fro
 	{
 		if (scan_front.size() < 2)
 		{
-			ROS_WARN("ReferenceLocalization::estimateFrontWall: no points left for estimating front wall.");
+			ROS_WARN("ReferenceLocalization::estimateFrontWall - No points left for estimating front wall.");
 			return false;
 		}
 
@@ -134,7 +134,7 @@ bool ReferenceLocalization::estimateFrontWall(std::vector<cv::Point2d>& scan_fro
 		bool result = RelativeLocalizationUtilities::fitLine(scan_front, line_front, 0.1, 0.99999, inlier_distance, false);
 		if (!result || line_front.val[0] != line_front.val[0] || line_front.val[1] != line_front.val[1] || line_front.val[2] != line_front.val[2] || line_front.val[3] != line_front.val[3]) // check for NaN
 		{
-			ROS_WARN("ReferenceLocalization::estimateFrontWall: front wall could not be estimated in trial %i. Trying next.", i);
+			ROS_WARN("ReferenceLocalization::estimateFrontWall - Front wall could not be estimated in trial %i. Trying next.", i);
 			continue;
 		}
 
@@ -157,7 +157,7 @@ bool ReferenceLocalization::estimateFrontWall(std::vector<cv::Point2d>& scan_fro
 		}
 	}
 	if (found_front_line == false)
-		ROS_WARN("ReferenceLocalization::estimateFrontWall: front wall could not be estimated.");
+		ROS_WARN("ReferenceLocalization::estimateFrontWall - Front wall could not be estimated.");
 
 	return found_front_line;
 }
@@ -209,7 +209,7 @@ void ReferenceLocalization::computeAndPublishChildFrame(const cv::Vec4d& line, c
 	// transform
 	transform_table_reference.setOrigin(avg_translation_);
 	transform_table_reference.setRotation(avg_orientation_);
-	tf::StampedTransform tf_msg(transform_table_reference, time_stamp, base_frame_, child_frame_name_);
+	tf::StampedTransform tf_msg(transform_table_reference, time_stamp, base_frame_, reference_frame_);
 	shiftReferenceFrameToGround(tf_msg);
 
 	// publish coordinate system on tf

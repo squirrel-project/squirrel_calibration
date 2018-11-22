@@ -18,8 +18,12 @@ endif()
 
 set(catkin_RUN_PACKAGES			# all ROS packages from package.xml (libopencv-dev is system dependency --> sudo apt-get install)
 	actionlib
+	cob_fiducials
+	cob_object_detection_msgs
 	control_msgs
+	cv_bridge
 	geometry_msgs
+	image_transport
 	robotino_calibration
 	roscpp
 	roslib
@@ -40,8 +44,8 @@ find_package(catkin REQUIRED
 	${catkin_BUILD_PACKAGES}		# this makes ${catkin_LIBRARIES} include all libraries of ${catkin_BUILD_PACKAGES}
 )
 
-## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED COMPONENTS system)
+find_package(OpenCV REQUIRED)	# name identical to FindOpenCV.cmake in cmake_modules
 
 ###################################
 ## catkin specific configuration ##
@@ -56,6 +60,7 @@ CATKIN_DEPENDS
 DEPENDS
 	CalibrationTools
 	Boost
+	OpenCV
 )
 
 ###########
@@ -69,40 +74,61 @@ include_directories(
 	ros/include
 	${catkin_INCLUDE_DIRS} 		# same name as find_package
 	${Boost_INCLUDE_DIRS}
-	${robotino_calibration_INCLUDE_DIRS}
 )
 
 # calibration software
-add_executable(camera_base_calibration	ros/src/camera_base_calibration_node.cpp
-										ros/src/custom_interface.cpp
+add_executable(camera_laserscanner_calibration	ros/src/camera_laserscanner_calibration_node.cpp
+												ros/src/ipa_interface.cpp
+												ros/src/robotino_interface.cpp
+												ros/src/raw_interface.cpp
+												ros/src/cob_interface.cpp
+												ros/src/calibration_type.cpp
+												ros/src/camera_laserscanner_type.cpp
+												ros/src/calibration_marker.cpp
+												ros/src/checkerboard_marker.cpp
+												ros/src/pitag_marker.cpp
+												common/src/pose_definition.cpp
+)
+
+target_link_libraries(camera_laserscanner_calibration
+	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
+	${Boost_LIBRARIES}
+)
+
+add_dependencies(camera_laserscanner_calibration	${catkin_EXPORTED_TARGETS})
+
+add_executable(camera_arm_calibration	ros/src/camera_arm_calibration_node.cpp
+										ros/src/ipa_interface.cpp
 										ros/src/robotino_interface.cpp
 										ros/src/raw_interface.cpp
 										ros/src/cob_interface.cpp
+										ros/src/calibration_type.cpp
+										ros/src/camera_arm_type.cpp
+										ros/src/calibration_marker.cpp
+										ros/src/checkerboard_marker.cpp
 )
 
-target_link_libraries(camera_base_calibration
+target_link_libraries(camera_arm_calibration
 	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
 	${Boost_LIBRARIES}
-	${robotino_calibration_LIBRARIES}
 )
 
-add_dependencies(camera_base_calibration	${catkin_EXPORTED_TARGETS})
+add_dependencies(camera_arm_calibration		${catkin_EXPORTED_TARGETS})
 
-add_executable(arm_base_calibration  ros/src/arm_base_calibration_node.cpp
-										ros/src/custom_interface.cpp
-										ros/src/robotino_interface.cpp
-										ros/src/raw_interface.cpp
-										ros/src/cob_interface.cpp
+add_executable(checkerboard_detection	ros/src/checkerboard_detection_node.cpp
+						ros/src/calibration_marker.cpp
+						ros/src/checkerboard_marker.cpp
 )
-
-target_link_libraries(arm_base_calibration
+target_link_libraries(checkerboard_detection
 	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
-	${Boost_LIBRARIES}
-	${robotino_calibration_LIBRARIES}
 )
+add_dependencies(checkerboard_detection		${catkin_EXPORTED_TARGETS})
 
-add_dependencies(arm_base_calibration	${catkin_EXPORTED_TARGETS})
-
+add_executable(pitag_detection	ros/src/pitag_detection_node.cpp)
+target_link_libraries(pitag_detection
+	${catkin_LIBRARIES} # automatically links all catkin_BUILD_PACKAGES
+)
+add_dependencies(pitag_detection		${catkin_EXPORTED_TARGETS})
 
 #############
 ## Install ##
@@ -119,24 +145,43 @@ add_dependencies(arm_base_calibration	${catkin_EXPORTED_TARGETS})
 # )
 
 ## Mark executables and/or libraries for installation
-install(TARGETS camera_base_calibration
+install(TARGETS camera_laserscanner_calibration
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(TARGETS arm_base_calibration
+install(TARGETS camera_arm_calibration
 	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-## Mark cpp header files for installation
-# install(DIRECTORY include/${PROJECT_NAME}/
-#   DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-#   FILES_MATCHING PATTERN "*.h"
-#   PATTERN ".svn" EXCLUDE
-# )
+install(TARGETS checkerboard_detection
+	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(TARGETS pitag_detection
+	ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+	RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+# Mark cpp header files for installation
+install(DIRECTORY common/include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN ".svn" EXCLUDE
+)
+
+# Mark cpp header files for installation
+install(DIRECTORY ros/include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+  FILES_MATCHING PATTERN "*.h"
+  PATTERN ".svn" EXCLUDE
+)
 
 ## Mark other files for installation (e.g. launch and bag files, etc.)
 # install(FILES
@@ -144,3 +189,4 @@ install(TARGETS arm_base_calibration
 #   # myfile2
 #   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 # )
+

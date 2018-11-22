@@ -51,46 +51,46 @@
 #include <calibration_interface/robotino_interface.h>
 
 
-RobotinoInterface::RobotinoInterface(ros::NodeHandle nh, bool do_arm_calibration) :
-				CustomInterface(nh), camera_state_current_(2, 0.), arm_state_current_(0)
+RobotinoInterface::RobotinoInterface(ros::NodeHandle* nh, CalibrationType* calib_type, CalibrationMarker* calib_marker, bool do_arm_calibration, bool load_data) :
+				IPAInterface(nh, calib_type, calib_marker, do_arm_calibration, load_data), camera_state_current_(2, 0.), arm_state_current_(0)
 {
 	std::cout << "\n========== RobotinoInterface Parameters ==========\n";
 
 	// Adjust here: Add all needed code in here to let robot move itself, its camera and arm.
-	node_handle_.param<std::string>("/camera_base_calibration_pitag/camera_base_calibration/pan_controller_command", pan_controller_command_, "");
+	node_handle_.param<std::string>("pan_controller_command", pan_controller_command_, "");
 	std::cout << "pan_controller_command: " << pan_controller_command_ << std::endl;
-	node_handle_.param<std::string>("/camera_base_calibration_pitag/camera_base_calibration/tilt_controller_command", tilt_controller_command_, "");
+	node_handle_.param<std::string>("tilt_controller_command", tilt_controller_command_, "");
 	std::cout << "tilt_controller_command: " << tilt_controller_command_ << std::endl;
 	pan_controller_ = node_handle_.advertise<std_msgs::Float64>(pan_controller_command_, 1, false);
 	tilt_controller_ = node_handle_.advertise<std_msgs::Float64>(tilt_controller_command_, 1, false);
 
-	node_handle_.param<std::string>("/camera_base_calibration_pitag/camera_base_calibration/camera_joint_state_topic", camera_joint_state_topic_, "");
+	node_handle_.param<std::string>("camera_joint_state_topic", camera_joint_state_topic_, "");
 	std::cout << "camera_joint_state_topic: " << camera_joint_state_topic_ << std::endl;
-	node_handle_.param<std::string>("/camera_base_calibration_pitag/camera_base_calibration/pan_joint_name", pan_joint_name_, "");
+	node_handle_.param<std::string>("pan_joint_name", pan_joint_name_, "");
 	std::cout << "pan_joint_name: " << pan_joint_name_ << std::endl;
-	node_handle_.param<std::string>("/camera_base_calibration_pitag/camera_base_calibration/tilt_joint_name", tilt_joint_name_, "");
+	node_handle_.param<std::string>("tilt_joint_name", tilt_joint_name_, "");
 	std::cout << "tilt_joint_name: " << tilt_joint_name_ << std::endl;
 
 	camera_joint_state_sub_ = node_handle_.subscribe<sensor_msgs::JointState>(camera_joint_state_topic_, 0, &RobotinoInterface::cameraJointStateCallback, this);
 
-	if (do_arm_calibration)
+	if ( arm_calibration_ )
 	{
-		node_handle_.param<std::string>("/camera_base_calibration_pitag/camera_base_calibration/arm_joint_controller_command", arm_joint_controller_command_, "");
+		node_handle_.param<std::string>("arm_joint_controller_command", arm_joint_controller_command_, "");
 		std::cout << "arm_joint_controller_command: " << arm_joint_controller_command_ << std::endl;
 		arm_joint_controller_ = node_handle_.advertise<std_msgs::Float64MultiArray>(arm_joint_controller_command_, 1, false);
 
-		node_handle_.param<std::string>("/camera_base_calibration_pitag/camera_base_calibration/arm_state_topic", arm_state_topic_, "");
+		node_handle_.param<std::string>("arm_state_topic", arm_state_topic_, "");
 		std::cout << "arm_state_topic: " << arm_state_topic_ << std::endl;
 		arm_state_ = node_handle_.subscribe<sensor_msgs::JointState>(arm_state_topic_, 0, &RobotinoInterface::armStateCallback, this);
 	}
 	else
 	{
-		node_handle_.param<std::string>("/camera_base_calibration_pitag/camera_base_calibration/base_controller_topic_name", base_controller_topic_name_, "");
+		node_handle_.param<std::string>("base_controller_topic_name", base_controller_topic_name_, "");
 		std::cout << "base_controller_topic_name: " << base_controller_topic_name_ << std::endl;
 		base_controller_ = node_handle_.advertise<geometry_msgs::Twist>(base_controller_topic_name_, 1, false);
 	}
 
-	ROS_INFO("RobotinoInterface initialized.");
+	ROS_INFO("RobotinoInterface::RobotinoInterface - RobotinoInterface initialized.");
 }
 
 RobotinoInterface::~RobotinoInterface()
@@ -103,7 +103,7 @@ RobotinoInterface::~RobotinoInterface()
 //Callbacks - User defined
 void RobotinoInterface::cameraJointStateCallback(const sensor_msgs::JointState::ConstPtr& msg)
 {
-	boost::mutex::scoped_lock lock(camera_joint_state_data_mutex_);
+	boost::mutex::scoped_lock lock(camera_state_data_mutex_);
 	if (camera_state_current_.size() >= 2)
 	{
 		for (size_t i=0; i<msg->name.size(); ++i)
@@ -131,7 +131,7 @@ void RobotinoInterface::assignNewRobotVelocity(geometry_msgs::Twist new_velocity
 	base_controller_.publish(new_velocity);
 }
 
-void RobotinoInterface::assignNewCameraAngles(std_msgs::Float64MultiArray new_angles)
+void RobotinoInterface::assignNewCameraAngles(const std::string &camera_name, std_msgs::Float64MultiArray new_angles)
 {
 	// Adjust here: Assign new camera angles
 	std_msgs::Float64 angle;
@@ -141,27 +141,32 @@ void RobotinoInterface::assignNewCameraAngles(std_msgs::Float64MultiArray new_an
 	tilt_controller_.publish(angle);
 }
 
-std::vector<double>* RobotinoInterface::getCurrentCameraState()
+std::vector<double>* RobotinoInterface::getCurrentCameraState(const std::string &camera_name)
 {
-	boost::mutex::scoped_lock lock(camera_joint_state_data_mutex_);
+	boost::mutex::scoped_lock lock(camera_state_data_mutex_);
 	return &camera_state_current_;
 }
 // END CALIBRATION INTERFACE
 
 
 // ARM CALIBRATION INTERFACE
-void RobotinoInterface::assignNewArmJoints(std_msgs::Float64MultiArray new_joint_config)
+void RobotinoInterface::assignNewArmJoints(const std::string &arm_name, std_msgs::Float64MultiArray new_joint_config)
 {
 	// Adjust here: Assign new joints to your robot arm
 	arm_joint_controller_.publish(new_joint_config);
 }
 
-std::vector<double>* RobotinoInterface::getCurrentArmState()
+std::vector<double>* RobotinoInterface::getCurrentArmState(const std::string &arm_name)
 {
 	boost::mutex::scoped_lock lock(arm_state_data_mutex_);
 	return &arm_state_current_->position;
 }
 // END
+
+std::string RobotinoInterface::getRobotName()
+{
+	return "Robotino";
+}
 
 
 

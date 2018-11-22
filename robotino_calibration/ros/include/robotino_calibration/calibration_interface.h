@@ -51,32 +51,45 @@
 #ifndef CALIBRATION_INTERFACE_H_
 #define CALIBRATION_INTERFACE_H_
 
-// ROS
-#include <ros/ros.h>
-#include <std_msgs/Float64MultiArray.h>
-#include <std_msgs/Float64.h>
-#include <geometry_msgs/Twist.h>
 
+#include <ros/ros.h>
+#include <opencv2/opencv.hpp>
+#include <string>
 #include <vector>
+
 
 class CalibrationInterface
 {
+
 protected:
+
 	ros::NodeHandle node_handle_;
 
+
 public:
+
 	CalibrationInterface();
-	CalibrationInterface(ros::NodeHandle nh);
+	CalibrationInterface(ros::NodeHandle* nh);
 	virtual ~CalibrationInterface();
 
-	// camera calibration interface
-	virtual void assignNewRobotVelocity(geometry_msgs::Twist newVelocity) = 0;
-	virtual void assignNewCameraAngles(std_msgs::Float64MultiArray newAngles) = 0;
-	virtual std::vector<double>* getCurrentCameraState() = 0;
+	// apply new configuration to robot
+	virtual bool moveRobot(int current_index) = 0;
 
-	// arm calibration interface
-	virtual void assignNewArmJoints(std_msgs::Float64MultiArray newJointConfig) = 0;
-	virtual std::vector<double>* getCurrentArmState() = 0;
+	// get the amount of robot (movement) configurations that have been created by user
+	virtual int getConfigurationCount() = 0;
+
+	// give user the chance to execute some code before tf tree will be snapshotted (e.g. wait for transforms to be ready, wait to mitigate shaking effects in robot's kinematic after moving)
+	virtual void preSnapshot(int current_index) = 0;
+
+	// get the pattern points (in 3 dimensions) for each marker in local marker's frame. markers can have different patterns, hence one can mix pitags, checkerboards, etc...
+	virtual void getPatternPoints3D(const std::string marker_frame, std::vector<cv::Point3f> &pattern_points_3d) = 0;
+
+	// returns the uncertainties list which has to be set up like this: [parent frame, child frame, parent marker frame, child marker frame]
+	virtual void getUncertainties(std::vector<std::string> &uncertainties_list) = 0;
+
+	// returns the file name (including file extension) in which the calibration results will be stored to
+	virtual std::string getFileName(const std::string &appendix, const bool file_extension) = 0;
+
 };
 
 

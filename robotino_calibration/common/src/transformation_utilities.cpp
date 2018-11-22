@@ -48,17 +48,15 @@
  *
  ****************************************************************/
 
+
 #include <robotino_calibration/transformation_utilities.h>
 
-// Eigen
-//#include <Eigen/Core>
 
-//Exception
 #include <tf/exceptions.h>
-
 #include <string>
 #include <ros/ros.h>
 #include <tf/LinearMath/Matrix3x3.h>
+
 
 namespace transform_utilities
 {
@@ -67,7 +65,7 @@ namespace transform_utilities
 	// 1. rotation = yaw around z
 	// 2. rotation = pitch around y'
 	// 3. rotation = roll around x''
-	cv::Mat rotationMatrixFromYPR(double yaw, double pitch, double roll)
+	/*cv::Mat rotationMatrixFromYPR(double yaw, double pitch, double roll)
 	{
 		double sy = sin(yaw);
 		double cy = cos(yaw);
@@ -81,7 +79,7 @@ namespace transform_utilities
 				sr*sy - cr*cy*sp,		cy*sr + cr*sp*sy,		cp*cr);
 
 		return rotation;
-	}
+	}*/
 
 	// computes yaw, pitch, roll angles from rotation matrix rot (can also be a 4x4 transformation matrix with rotation matrix at upper left corner)
 	cv::Vec3d YPRFromRotationMatrix(const cv::Mat& rot)
@@ -93,13 +91,6 @@ namespace transform_utilities
 		double yaw, pitch, roll;
 		r_mat.getEulerYPR(yaw, pitch, roll, 1);
 		return cv::Vec3d(yaw, pitch, roll);
-
-		/*Eigen::Matrix3f rot_eigen;
-		for (int i=0; i<3; ++i)
-			for (int j=0; j<3; ++j)
-				rot_eigen(i,j) = rot.at<double>(i,j);
-		Eigen::Vector3f euler_angles = rot_eigen.eulerAngles(2,1,0);
-		return cv::Vec3d(euler_angles(0), euler_angles(1), euler_angles(2));*/
 	}
 
 	cv::Mat makeTransform(const cv::Mat& R, const cv::Mat& t)
@@ -108,7 +99,7 @@ namespace transform_utilities
 				R.at<double>(0,0), R.at<double>(0,1), R.at<double>(0,2), t.at<double>(0),
 				R.at<double>(1,0), R.at<double>(1,1), R.at<double>(1,2), t.at<double>(1),
 				R.at<double>(2,0), R.at<double>(2,1), R.at<double>(2,2), t.at<double>(2),
-				0., 0., 0., 1);
+				0., 0., 0., 1.);
 		return T;
 	}
 
@@ -134,7 +125,7 @@ namespace transform_utilities
 		}
 		else
 		{
-			ROS_WARN("String does not contain amount of values for a transformation (exactly 6 needed).");
+			ROS_WARN("transform_utilities::stringToTransform - String does not contain amount of values for a transformation (exactly 6 needed).");
 
 			trafo = ( cv::Mat_<double>(4,4) <<
 							0., 0., 0., 0.,
@@ -147,7 +138,7 @@ namespace transform_utilities
 	}*/
 
 	// computes the transform from source_frame to target_frame (i.e. transform arrow is pointing from source_frame to target_frame)
-	bool getTransform(const tf::TransformListener& transform_listener, const std::string& target_frame, const std::string& source_frame, cv::Mat& T, bool check_time)
+	bool getTransform(const tf::TransformListener& transform_listener, const std::string& target_frame, const std::string& source_frame, cv::Mat& T, const double timeout, const bool report_error)
 	{
 		try
 		{
@@ -155,10 +146,13 @@ namespace transform_utilities
 			transform_listener.waitForTransform(target_frame, source_frame, ros::Time(0), ros::Duration(1.0));
 			transform_listener.lookupTransform(target_frame, source_frame, ros::Time(0), Ts);
 
-			const double current_time = ros::Time::now().toSec();
+			if ( timeout > 0.0 )
+			{
+				const double current_time = ros::Time::now().toSec();
 
-			if ( check_time && ( !Ts.stamp_.isValid() || current_time - Ts.stamp_.toSec() > 1.f ) )
-				throw tf::TransformException("getTransform: Transform from "+target_frame+" to "+source_frame+" timed out.");
+				if ( !Ts.stamp_.isValid() || current_time - Ts.stamp_.toSec() > timeout )
+					throw tf::TransformException("transform_utilities::getTransform - Transform from "+target_frame+" to "+source_frame+" timed out.");
+			}
 
 			const tf::Matrix3x3& rot = Ts.getBasis();
 			const tf::Vector3& trans = Ts.getOrigin();
@@ -169,11 +163,17 @@ namespace transform_utilities
 					rotcv.at<double>(v,u) = rot[v].m_floats[u];
 			for (int v=0; v<3; ++v)
 				transcv.at<double>(v) = trans.m_floats[v];
+
+			if ( !T.empty() )  // release memory when T is not empty
+				T.release();
+
 			T = makeTransform(rotcv, transcv);
 		}
 		catch (tf::TransformException& ex)
 		{
-			ROS_WARN("%s",ex.what());
+			if ( report_error )
+				ROS_WARN("transform_utilities::getTransform - %s",ex.what());
+
 			return false;
 		}
 

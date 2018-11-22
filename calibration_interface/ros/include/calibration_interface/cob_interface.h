@@ -51,11 +51,11 @@
 #ifndef COB_INTERFACE_H_
 #define COB_INTERFACE_H_
 
-#include <calibration_interface/custom_interface.h>
+#include <calibration_interface/ipa_interface.h>
 #include <sensor_msgs/JointState.h>
 #include <boost/thread/mutex.hpp>
 
-class CobInterface : public CustomInterface
+class CobInterface : public IPAInterface
 {
 protected:
 	std::string arm_left_command_;
@@ -74,13 +74,15 @@ protected:
 	ros::Publisher camera_joint_controller_;
 
 public:
-	CobInterface(ros::NodeHandle nh, bool do_arm_calibration);
+	CobInterface(ros::NodeHandle* nh, CalibrationType* calib_type, CalibrationMarker* calib_marker, bool do_arm_calibration, bool load_data);
 	~CobInterface();
+
+	std::string getRobotName();
 
 	// camera calibration interface
 	void assignNewRobotVelocity(geometry_msgs::Twist newVelocity);
-	void assignNewCameraAngles(std_msgs::Float64MultiArray newAngles);
-	std::vector<double>* getCurrentCameraState();
+	void assignNewCameraAngles(const std::string &camera_name, std_msgs::Float64MultiArray newAngles);
+	std::vector<double>* getCurrentCameraState(const std::string &camera_name);
 
 	// callbacks
 	void cameraStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
@@ -88,8 +90,8 @@ public:
 	void armRightStateCallback(const sensor_msgs::JointState::ConstPtr& msg);
 
 	// arm calibration interface
-	void assignNewArmJoints(std_msgs::Float64MultiArray newJointConfig);
-	std::vector<double>* getCurrentArmState();
+	void assignNewArmJoints(const std::string &arm_name, std_msgs::Float64MultiArray newJointConfig);
+	std::vector<double>* getCurrentArmState(const std::string &arm_name);
 };
 
 #endif /* COB_INTERFACE_H_ */
